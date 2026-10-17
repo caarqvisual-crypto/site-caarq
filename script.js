@@ -25,3 +25,39 @@ function homeCard(title,sub,body,imageUrl){const card=make('article','home-card'
 async function loadHomeTeam(){const host=document.getElementById('homeTeamCards');try{const {data:gs,error:eg}=await publicDB.from('caarq_gestoes').select('id,nome').eq('publicada',true).eq('atual',true).limit(1);if(eg)throw eg;host.replaceChildren();if(!gs?.length){host.append(make('p','home-status','A gestão atual será apresentada aqui quando for publicada.'));return;}const {data:people,error:ep}=await publicDB.from('caarq_membros').select('nome,cargo,apresentacao,foto_url').eq('gestao_id',gs[0].id).eq('publicado',true).order('ordem',{ascending:true}).limit(3);if(ep)throw ep;if(!people?.length){host.append(make('p','home-status','Os integrantes aparecerão aqui quando seus perfis forem publicados.'));return;}people.forEach(x=>host.append(homeCard(x.nome,x.cargo,x.apresentacao,x.foto_url)));}catch(e){console.error(e);host.replaceChildren(make('p','home-status','Equipe temporariamente indisponível.'));}}
 async function loadHomeProjects(){const host=document.getElementById('homeProjectCards');try{const {data,error}=await publicDB.from('caarq_atividades').select('tipo,titulo,descricao,foto_url,data_inicio,situacao').eq('publicado',true).neq('situacao','cancelado').order('criado_em',{ascending:false}).limit(3);if(error)throw error;host.replaceChildren();if(!data?.length){host.append(make('p','home-status','Os próximos projetos e eventos aparecerão aqui após a primeira publicação.'));return;}data.forEach(x=>host.append(homeCard(x.titulo,x.tipo==='evento'?'EVENTO':'PROJETO',x.descricao,x.foto_url)));}catch(e){console.error(e);host.replaceChildren(make('p','home-status','Atividades temporariamente indisponíveis.'));}}
 void Promise.all([loadHomeTeam(),loadHomeProjects()]);
+
+
+// V6 — aparência do site atualizada por Administradores Gerais.
+// A tabela é pública apenas para leitura; gravações são protegidas pela RLS do Supabase.
+const defaultAppearance={primary_color:'#40194f',accent_color:'#ffd02f',hero_kicker:'Memória · Acesso · Participação',hero_first:'Guardar memórias.',hero_highlight:'Transformar',hero_last:'futuros.',hero_description:'Somos o Centro Acadêmico de Arquivologia da UEPB, Campus V. Um espaço de representação estudantil, diálogo e construção coletiva.',logo_url:null,banner_url:null};
+const hexColor=(value,fallback)=>/^#[0-9a-fA-F]{6}$/.test(value||'')?value:fallback;
+function deriveDark(hex,amount){const parts=[1,3,5].map(n=>parseInt(hex.slice(n,n+2),16));return '#'+parts.map(n=>Math.round(n*amount).toString(16).padStart(2,'0')).join('');}
+function safeAppearanceImage(value){try{const u=new URL(value);return u.protocol==='https:'?u.href:null;}catch{return null;}}
+function applyHomeAppearance(data){
+ const cfg={...defaultAppearance,...data};
+ const primary=hexColor(cfg.primary_color,defaultAppearance.primary_color),accent=hexColor(cfg.accent_color,defaultAppearance.accent_color);
+ const root=document.documentElement;
+ root.style.setProperty('--purple',primary);
+ root.style.setProperty('--purple-dark',deriveDark(primary,.68));
+ root.style.setProperty('--purple-mid',deriveDark(primary,1.25));
+ root.style.setProperty('--yellow',accent);
+ const textIds={homeKicker:'hero_kicker',homeTitleFirst:'hero_first',homeTitleAccent:'hero_highlight',homeTitleLast:'hero_last',homeDescription:'hero_description'};
+ for(const [id,key] of Object.entries(textIds)){
+   const el=document.getElementById(id);
+   if(el&&typeof cfg[key]==='string'&&cfg[key].trim())el.textContent=cfg[key];
+ }
+ const logo=safeAppearanceImage(cfg.logo_url);
+ if(logo){document.querySelectorAll('.brand img,.doc-logo').forEach(img=>{img.onerror=()=>{img.onerror=null;img.src='logo-caarq.png';};img.src=logo;});}
+ const hero=document.querySelector('.hero');
+ const previous=document.getElementById('homeBannerImage');if(previous)previous.remove();
+ const banner=safeAppearanceImage(cfg.banner_url);
+ if(hero&&banner){const img=document.createElement('img');img.id='homeBannerImage';img.className='hero-custom-photo';img.alt='';img.decoding='async';img.src=banner;img.onerror=()=>img.remove();hero.prepend(img);}
+}
+async function loadPublicAppearance(){
+ try{
+  const {data,error}=await publicDB.from('caarq_aparencia').select('primary_color,accent_color,hero_kicker,hero_first,hero_highlight,hero_last,hero_description,logo_url,banner_url').eq('id',1).maybeSingle();
+  if(error)throw error;
+  if(data)applyHomeAppearance(data);
+ }catch(error){console.info('Aparência padrão mantida; configuração indisponível.');}
+}
+void loadPublicAppearance();

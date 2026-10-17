@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
-<link href="style.css?v=5-integrado" rel="stylesheet"/>
+<link href="style.css?v=6-aparencia" rel="stylesheet"/>
 </head>
 <body>
 <div class="announcement"><span class="announcement-dot"></span> Centro Acadêmico de Arquivologia · UEPB Campus V</div>
@@ -30,9 +30,9 @@
 <div class="hero-orbit orbit-one"></div><div class="hero-orbit orbit-two"></div>
 <div class="container hero-layout">
 <div class="hero-copy">
-<div class="eyebrow"><span class="eyebrow-line"></span> Memória · Acesso · Participação</div>
-<h1>Guardar memórias.<br/><em>Transformar</em> futuros.</h1>
-<p class="hero-lead">Somos o Centro Acadêmico de Arquivologia da UEPB, Campus V. Um espaço de representação estudantil, diálogo e construção coletiva.</p>
+<div class="eyebrow"><span class="eyebrow-line"></span><span id="homeKicker">Memória · Acesso · Participação</span></div>
+<h1><span id="homeTitleFirst">Guardar memórias.</span><br/><em id="homeTitleAccent">Transformar</em> <span id="homeTitleLast">futuros.</span></h1>
+<p class="hero-lead" id="homeDescription">Somos o Centro Acadêmico de Arquivologia da UEPB, Campus V. Um espaço de representação estudantil, diálogo e construção coletiva.</p>
 <div class="hero-actions">
 <a class="button button-yellow" href="#sobre">Conheça o CAARQ <span>↓</span></a>
 <a class="text-link" href="#atuacao">O que fazemos <span>↗</span></a>
@@ -41,7 +41,7 @@
 </div>
 <div aria-label="Composição gráfica inspirada em arquivos, documentos e memória" class="hero-art">
 <div class="art-backdrop"></div>
-<div class="art-label label-top">ARQUIVO VIVO <span>01 / 03</span></div>
+<div class="art-label label-top">CAARQ · ARQUIVOLOGIA <span>01 / 03</span></div>
 <div class="folder folder-back"><div class="folder-tab"></div><div class="folder-lines"></div></div>
 <div class="document document-back"><span class="doc-stamp">UEPB</span><div class="doc-rule"></div><div class="doc-rule short"></div><div class="doc-rule"></div><div class="doc-rule medium"></div><div class="doc-seal">✳</div></div>
 <div class="document document-front"><div class="doc-topline"><span>CAARQ</span><span>BL · 2026</span></div><div class="doc-title">MEMÓRIA<br/><b>EM MOVIMENTO</b></div><div class="doc-rule"></div><div class="doc-rule medium"></div><div class="doc-rule short"></div><img alt="" class="doc-logo" loading="eager" src="logo-caarq.png"/><div class="doc-footer"><span>ARQUIVOLOGIA</span><span>UEPB · CAMPUS V</span></div></div>
@@ -71,7 +71,7 @@
 <div class="section-heading portal-head"><div><p class="kicker">Tudo em um só lugar</p><h2 id="portalTitle">Explore o <span>CAARQ.</span></h2></div><p class="heading-side">Equipe, projetos, atividades e informações do Centro Acadêmico conectadas a partir desta página.</p></div>
 <div class="portal-grid">
 <a class="portal-card" href="membros/"><span aria-hidden="true" class="portal-glyph">♧</span><span class="portal-tag">NOSSA EQUIPE</span><strong>Membros e gestões</strong><small>Gestão atual e histórico de quem fez parte do CAARQ</small><span class="portal-arrow">Acessar ↗</span></a>
-<a class="portal-card" href="projetos/"><span aria-hidden="true" class="portal-glyph">▤</span><span class="portal-tag">ARQUIVO VIVO</span><strong>Projetos</strong><small>Ações em andamento e projetos já concluídos</small><span class="portal-arrow">Acessar ↗</span></a>
+<a class="portal-card" href="projetos/"><span aria-hidden="true" class="portal-glyph">▤</span><span class="portal-tag">PROJETOS DO CAARQ</span><strong>Projetos</strong><small>Ações em andamento e projetos já concluídos</small><span class="portal-arrow">Acessar ↗</span></a>
 <a class="portal-card" href="projetos/#calendario"><span aria-hidden="true" class="portal-glyph">▦</span><span class="portal-tag">AGENDA ESTUDANTIL</span><strong>Calendário</strong><small>Datas, encontros, atividades e próximos eventos</small><span class="portal-arrow">Ver agenda ↗</span></a>
 <a class="portal-card portal-card-admin" href="admin/"><span aria-hidden="true" class="portal-glyph">↗</span><span class="portal-tag">ACESSO RESTRITO</span><strong>Área dos Membros</strong><small>Login dos integrantes autorizados a administrar o site</small><span class="portal-arrow">Entrar ↗</span></a>
 </div>
@@ -124,7 +124,7 @@
 </section>
 <section class="home-projects section-pad" id="projetos-resumo">
 <div class="container">
-<div class="section-heading"><div><p class="kicker">Arquivo vivo do CAARQ</p><h2>Projetos, eventos <span>e calendário.</span></h2></div>
+<div class="section-heading"><div><p class="kicker">Projetos e iniciativas do CAARQ</p><h2>Projetos, eventos <span>e calendário.</span></h2></div>
 <p class="heading-side">Acompanhe as ações em andamento, descubra os próximos encontros e explore nossos projetos concluídos.</p></div>
 <div aria-live="polite" class="home-card-grid" id="homeProjectCards"><p class="home-status">Carregando atividades…</p></div>
 <a class="home-more" href="projetos/">Abrir projetos e calendário completo <span>↗</span></a>
@@ -155,6 +155,6 @@
 </section>
 </main>
 <footer class="site-footer"><div class="container footer-inner"><a class="footer-brand" href="#inicio">CAARQ<span>✳</span></a><p>Memória, acesso e participação.</p><a href="#inicio">Voltar ao início ↑</a><small>© <span id="year"></span> CAARQ Bríggida Lourenço</small></div></footer>
-<script src="script.js?v=5-integrado" type="module"></script>
+<script src="script.js?v=6-aparencia" type="module"></script>
 </body>
 </html>
