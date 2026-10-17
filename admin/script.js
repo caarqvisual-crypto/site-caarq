@@ -895,8 +895,10 @@ async function chatActivate(user){
     void chatRefreshCurrent(false);
     if(chatIsAdmin)void chatLoadPresence();
   },16000);
+  void chatV12Activate();
 }
 async function chatDeactivate(){
+  await chatV12Deactivate();
   ++chatActivationSerial;
   if(chatTicker){clearInterval(chatTicker);chatTicker=null;}
   if(chatHeartbeat){clearInterval(chatHeartbeat);chatHeartbeat=null;}
@@ -962,6 +964,8 @@ function chatRenderContacts(){
     words.append(document.createTextNode(chatName(account.user_id)));
     const status=document.createElement('small');status.textContent=account.trocar_senha?'Aguardando troca de senha':chatOnlineNow(account.user_id)?'Online':'Offline ou ausente';words.append(status);
     b.append(wrap,words);
+    const unread=chatV12UnreadCount('direta',account.user_id);
+    if(unread)b.append(chatV12Badge(unread));
     b.addEventListener('click',()=>void chatSelectMember(account.user_id));
     box.append(b);
   }
@@ -1020,7 +1024,7 @@ async function chatLoadMessages(scrollEnd=false){
     if(selected!==chatMemberId)return;
     const messages=(data||[]).reverse();
     const signature=messages.map(x=>x.id).join('|');
-    if(signature===chatLastSignature && !scrollEnd)return;
+    if(signature===chatLastSignature && !scrollEnd){void chatV12MarkRead('direta',selected);return;}
     const atBottom=list.scrollTop+list.clientHeight >= list.scrollHeight-65;
     chatLastSignature=signature;
     list.replaceChildren();
@@ -1037,6 +1041,7 @@ async function chatLoadMessages(scrollEnd=false){
     }
     if(atBottom || scrollEnd || !list.dataset.seen){list.scrollTop=list.scrollHeight;}
     list.dataset.seen='true';
+    void chatV12MarkRead('direta',selected);
   }catch(error){chatMessage('Não foi possível carregar as mensagens: '+(error?.message||'falha de rede'));}
   finally{chatInFlight=false;}
 }
@@ -1056,6 +1061,7 @@ el('openChat').addEventListener('click',async()=>{
     const empty=document.createElement('p');empty.className='chat-empty';empty.textContent='Selecione um integrante na caixa de entrada.';el('chatMessageList').append(empty);
     await chatLoadContacts();
   }else await chatSelectMember(chatUser.id);
+  chatV12SwitchTab('direta');
   el('chatManager').scrollIntoView({behavior:'smooth',block:'start'});
 });
 el('closeChat').addEventListener('click',()=>{
@@ -1101,6 +1107,306 @@ document.addEventListener('visibilitychange',()=>{
 for(const id of ['openProfile','openMembers','openProjects','openAppearance','openAccess']){
   el(id)?.addEventListener('click',()=>{el('chatManager').hidden=true;},{capture:true});
 }
+
+
+// CAARQ V12 — salas privadas, chat geral, grupos e notificações de mensagens não lidas.
+// As permissões reais são verificadas pelo Postgres/RLS e funções SECURITY DEFINER.
+let chatV12Rooms=[];
+let chatV12SelectedRoom=null;
+let chatV12Unread=new Map();
+let chatV12RoomNames=new Map();
+let chatV12LastRoomSignature='';
+let chatV12RoomLoading=false;
+let chatV12UnreadLoading=false;
+let chatV12UnreadTimer=null;
+let chatV12NotificationChannel=null;
+let chatV12ReadTimes=new Map();
+let chatV12ContactsLoaded=false;
+const chatV12Key=(type,id)=>type+':'+id;
+const chatV12UnreadCount=(type,id)=>chatV12Unread.get(chatV12Key(type,id))||0;
+function chatV12Badge(count){
+  const node=document.createElement('span');
+  node.className='chat-badge contact-unread';node.textContent=count>99?'99+':String(count);
+  node.setAttribute('aria-label',count+' mensagens não lidas');
+  return node;
+}
+function chatV12UpdateBadge(){
+  const count=[...chatV12Unread.values()].reduce((a,b)=>a+b,0);
+  const badge=el('chatUnreadBadge');
+  badge.hidden=!count;
+  badge.textContent=count>99?'99+':String(count);
+  el('chatTile').setAttribute('aria-label', count?count+' mensagens não lidas':'Mensagens');
+  if(chatIsAdmin)chatRenderContacts();
+  chatV12RenderRooms();
+}
+async function chatV12LoadUnread(){
+  if(!chatUser||chatV12UnreadLoading)return;
+  chatV12UnreadLoading=true;
+  try{
+    const {data,error}=await client.rpc('caarq_chat_nao_lidas');
+    if(error)throw error;
+    chatV12Unread=new Map((data||[]).map(x=>[chatV12Key(x.tipo==='direta'?'direta':'sala',x.destino_id),Math.max(0,Number(x.quantidade)||0)]));
+    chatV12UpdateBadge();
+  }catch(err){console.warn('Não foi possível carregar notificações:',err.message);}
+  finally{chatV12UnreadLoading=false;}
+}
+async function chatV12MarkRead(type,id){
+  if(!chatUser||!id||document.visibilityState!=='visible'||el('chatManager').hidden)return;
+  const onScreen=(type==='direta'&&!el('chatPrivateView').hidden)||(type==='sala'&&!el('chatGroupView').hidden);
+  if(!onScreen)return;
+  const key=chatV12Key(type,id),last=chatV12ReadTimes.get(key)||0;
+  if(Date.now()-last<7500)return;
+  chatV12ReadTimes.set(key,Date.now());
+  try{
+    const {error}=await client.from('caarq_chat_leituras').upsert({
+      tipo:type,destino_id:id,user_id:chatUser.id,lida_ate:new Date().toISOString()
+    },{onConflict:'tipo,destino_id,user_id'});
+    if(error)throw error;
+    if(chatV12Unread.has(key)){
+      chatV12Unread.delete(key);chatV12UpdateBadge();
+    }
+  }catch(err){console.warn('Não foi possível marcar conversa como lida:',err.message);}
+}
+function chatV12SwitchTab(tab){
+  const isRoom=tab==='sala';
+  el('chatPrivateView').hidden=isRoom;
+  el('chatGroupView').hidden=!isRoom;
+  el('chatPrivateTab').classList.toggle('selected',!isRoom);
+  el('chatGroupTab').classList.toggle('selected',isRoom);
+  el('chatPrivateTab').setAttribute('aria-selected',String(!isRoom));
+  el('chatGroupTab').setAttribute('aria-selected',String(isRoom));
+  if(isRoom){
+    void chatV12LoadRooms().then(()=>{
+      if(chatV12SelectedRoom)void chatV12LoadRoomMessages(true);
+    });
+  }else if(chatMemberId){void chatLoadMessages(true);}
+  void chatV12LoadUnread();
+}
+function chatV12Checkboxes(containerId,selected=[]){
+  const holder=el(containerId);holder.replaceChildren();
+  if(!chatContacts.length){
+    const p=document.createElement('p');p.className='chat-empty';
+    p.textContent='Nenhum integrante disponível.';holder.append(p);return;
+  }
+  for(const member of chatContacts){
+    if(member.trocar_senha)continue;
+    const label=document.createElement('label');
+    const input=document.createElement('input');input.type='checkbox';input.value=member.user_id;
+    input.checked=selected.includes(member.user_id);
+    const span=document.createElement('span');span.textContent=chatName(member.user_id);
+    label.append(input,span);holder.append(label);
+  }
+}
+function chatV12SelectedCheckboxes(holderId){
+  return [...el(holderId).querySelectorAll('input[type=checkbox]:checked')].map(i=>i.value);
+}
+async function chatV12LoadRooms(){
+  if(!chatUser)return;
+  const {data,error}=await client.from('caarq_chat_salas').select('id,tipo,nome,criada_em')
+   .order('tipo',{ascending:true}).order('criada_em',{ascending:true});
+  if(error){chatMessage('Não foi possível carregar as salas: '+error.message);return;}
+  chatV12Rooms=(data||[]).sort((a,b)=>a.tipo==='geral'?-1:b.tipo==='geral'?1:a.nome.localeCompare(b.nome,'pt-BR'));
+  if(chatV12SelectedRoom&&!chatV12Rooms.some(x=>x.id===chatV12SelectedRoom.id)){
+    chatV12SelectedRoom=null;
+    chatV12RoomHeader();
+    el('chatRoomMessages').replaceChildren();
+    const p=document.createElement('p');p.className='chat-empty';p.textContent='Você não participa mais desta sala.';
+    el('chatRoomMessages').append(p);
+  }
+  chatV12RenderRooms();
+}
+function chatV12RenderRooms(){
+  const list=el('chatRoomList');list.replaceChildren();
+  if(!chatV12Rooms.length){
+    const p=document.createElement('p');p.className='chat-empty';p.textContent='Nenhuma sala disponível.';list.append(p);return;
+  }
+  for(const room of chatV12Rooms){
+    const button=document.createElement('button');button.type='button';
+    button.className='chat-contact'+(chatV12SelectedRoom?.id===room.id?' selected':'');
+    button.setAttribute('aria-pressed',String(chatV12SelectedRoom?.id===room.id));
+    const avatar=document.createElement('span');avatar.className='chat-contact-photo';
+    avatar.textContent=room.tipo==='geral'?'📣':'👥';
+    const words=document.createElement('span');words.className='chat-contact-name';
+    words.append(document.createTextNode(room.nome));
+    const small=document.createElement('small');small.textContent=room.tipo==='geral'?'Todos os membros autorizados':'Grupo de integrantes';words.append(small);
+    button.append(avatar,words);
+    const count=chatV12UnreadCount('sala',room.id);
+    if(count)button.append(chatV12Badge(count));
+    button.addEventListener('click',()=>void chatV12SelectRoom(room.id));
+    list.append(button);
+  }
+}
+function chatV12RoomHeader(){
+  const room=chatV12SelectedRoom;
+  el('chatRoomName').textContent=room?.nome||'Escolha uma sala';
+  el('chatRoomAvatar').textContent=room?.tipo==='geral'?'📣':room?'👥':'✳';
+  el('chatRoomDescription').textContent=room?.tipo==='geral'
+    ?'Visível a todos os integrantes com acesso ativo'
+    :room?'Somente integrantes convidados e Administração Geral':'Escolha uma conversa';
+  el('chatRoomDraft').disabled=!room;el('chatRoomSend').disabled=!room;
+  el('chatManageGroup').hidden=!chatIsAdmin||room?.tipo!=='grupo';
+  el('chatMentionAll').hidden=!chatIsAdmin||room?.tipo!=='geral';
+  el('chatGroupManagePanel').hidden=true;
+}
+async function chatV12SelectRoom(id){
+  const room=chatV12Rooms.find(x=>x.id===id);
+  if(!room)return;
+  chatV12SelectedRoom=room;chatV12LastRoomSignature='';
+  chatV12RoomHeader();chatV12RenderRooms();
+  await chatV12LoadRoomPeople(room.id);
+  await chatV12LoadRoomMessages(true);
+}
+async function chatV12LoadRoomPeople(roomId){
+  chatV12RoomNames.clear();
+  const {data,error}=await client.rpc('caarq_chat_integrantes_da_sala',{p_sala_id:roomId});
+  if(!error){for(const p of data||[])chatV12RoomNames.set(p.user_id,p.nome);}
+}
+async function chatV12LoadRoomMessages(scrollEnd=false){
+  if(!chatUser||!chatV12SelectedRoom||chatV12RoomLoading)return;
+  const roomId=chatV12SelectedRoom.id;
+  chatV12RoomLoading=true;
+  const list=el('chatRoomMessages');
+  try{
+    const {data,error}=await client.from('caarq_chat_sala_mensagens')
+      .select('id,sala_id,remetente_id,conteudo,enviada_em')
+      .eq('sala_id',roomId).order('enviada_em',{ascending:false}).limit(150);
+    if(error)throw error;
+    if(chatV12SelectedRoom?.id!==roomId)return;
+    const messages=(data||[]).reverse();
+    const signature=messages.map(x=>x.id).join('|');
+    if(signature===chatV12LastRoomSignature&&!scrollEnd){
+      void chatV12MarkRead('sala',roomId);return;
+    }
+    const nearBottom=list.scrollTop+list.clientHeight>=list.scrollHeight-75;
+    chatV12LastRoomSignature=signature;
+    list.replaceChildren();
+    if(!messages.length){
+      const p=document.createElement('p');p.className='chat-empty';p.textContent='Ainda não há mensagens. Comece a conversa!';list.append(p);
+    }
+    for(const msg of messages){
+      const bubble=document.createElement('div');
+      const mine=msg.remetente_id===chatUser.id;
+      const mention=/(^|\W)@todos(\W|$)/i.test(msg.conteudo);
+      bubble.className='chat-bubble'+(mine?' mine':'')+(mention?' chat-room-bubble-mention':'');
+      const text=document.createElement('div');text.textContent=msg.conteudo;text.style.whiteSpace='pre-wrap';
+      const meta=document.createElement('small');
+      meta.textContent=(mine?'Você':chatV12RoomNames.get(msg.remetente_id)||'Integrante')+' · '+chatTime(msg.enviada_em);
+      bubble.append(text,meta);list.append(bubble);
+    }
+    if(nearBottom||scrollEnd||!list.dataset.seen)list.scrollTop=list.scrollHeight;
+    list.dataset.seen='true';
+    void chatV12MarkRead('sala',roomId);
+  }catch(err){chatMessage('Não foi possível carregar mensagens do grupo: '+err.message);}
+  finally{chatV12RoomLoading=false;}
+}
+async function chatV12Activate(){
+  if(!chatUser)return;
+  chatV12SelectedRoom=null;chatV12Rooms=[];chatV12Unread.clear();
+  el('chatGroupCreate').hidden=!chatIsAdmin;
+  el('chatUnreadBadge').hidden=true;
+  if(chatV12UnreadTimer)clearInterval(chatV12UnreadTimer);
+  chatV12UnreadTimer=setInterval(()=>{
+    if(chatUser&&document.visibilityState==='visible'){
+      void chatV12LoadUnread();
+      if(!el('chatGroupView').hidden&&!el('chatManager').hidden&&chatV12SelectedRoom){
+        void chatV12LoadRoomMessages();
+      }
+    }
+  },12000);
+  if(chatV12NotificationChannel){await client.removeChannel(chatV12NotificationChannel);chatV12NotificationChannel=null;}
+  chatV12NotificationChannel=client.channel('caarq-v12-notify-'+chatUser.id+'-'+Date.now())
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'caarq_chat_mensagens'},()=>{
+      void chatV12LoadUnread();
+      if(!el('chatManager').hidden&&!el('chatPrivateView').hidden&&chatMemberId)void chatLoadMessages();
+    })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'caarq_chat_sala_mensagens'},()=>{
+      void chatV12LoadUnread();
+      if(!el('chatManager').hidden&&!el('chatGroupView').hidden&&chatV12SelectedRoom)void chatV12LoadRoomMessages();
+    }).subscribe();
+  await chatV12LoadUnread();
+}
+async function chatV12Deactivate(){
+  if(chatV12UnreadTimer){clearInterval(chatV12UnreadTimer);chatV12UnreadTimer=null;}
+  if(chatV12NotificationChannel){await client.removeChannel(chatV12NotificationChannel);chatV12NotificationChannel=null;}
+  chatV12Unread.clear();chatV12Rooms=[];chatV12SelectedRoom=null;chatV12ReadTimes.clear();
+  el('chatUnreadBadge').hidden=true;
+}
+async function chatV12OpenGroupTab(){
+  if(!chatUser)return;
+  if(chatIsAdmin){
+    if(!chatContacts.length)await chatLoadContacts();
+    chatV12Checkboxes('chatNewGroupMembers');
+  }
+  chatV12SwitchTab('sala');
+}
+el('chatPrivateTab').addEventListener('click',()=>chatV12SwitchTab('direta'));
+el('chatGroupTab').addEventListener('click',()=>void chatV12OpenGroupTab());
+el('chatReloadRooms').addEventListener('click',()=>void chatV12LoadRooms());
+el('chatReloadRoomMessages').addEventListener('click',()=>void chatV12LoadRoomMessages(true));
+el('chatMentionAll').addEventListener('click',()=>{
+  if(!chatIsAdmin||chatV12SelectedRoom?.tipo!=='geral')return;
+  const input=el('chatRoomDraft');
+  input.value=(input.value.trim()?input.value.trim()+' ':'')+'@todos ';
+  input.focus();
+});
+el('chatRoomDraft').addEventListener('keydown',event=>{
+  if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();el('chatRoomForm').requestSubmit();}
+});
+el('chatRoomForm').addEventListener('submit',async event=>{
+  event.preventDefault();const room=chatV12SelectedRoom;const content=el('chatRoomDraft').value.trim();
+  if(!chatUser||!room||!content||content.length>2000)return;
+  const button=el('chatRoomSend');button.disabled=true;chatMessage('');
+  try{
+    const {error}=await client.from('caarq_chat_sala_mensagens').insert({sala_id:room.id,remetente_id:chatUser.id,conteudo:content});
+    if(error)throw error;
+    el('chatRoomDraft').value='';
+    await chatV12LoadRoomMessages(true);
+    await chatV12LoadUnread();
+  }catch(err){chatMessage('Não foi possível enviar para a sala: '+(err.message||'erro de conexão'));}
+  finally{button.disabled=false;}
+});
+el('chatCreateGroupForm').addEventListener('submit',async event=>{
+  event.preventDefault();if(!chatIsAdmin||!chatUser)return;
+  const name=el('chatNewGroupName').value.trim();const people=chatV12SelectedCheckboxes('chatNewGroupMembers');
+  if(name.length<3||people.length<1){chatMessage('Informe o nome e selecione ao menos um integrante.');return;}
+  const button=el('chatCreateGroupButton');button.disabled=true;chatMessage('');
+  try{
+    const {data,error}=await client.rpc('caarq_chat_criar_grupo',{p_nome:name,p_membros:people});
+    if(error)throw error;
+    el('chatNewGroupName').value='';
+    chatV12Checkboxes('chatNewGroupMembers');
+    await chatV12LoadRooms();
+    await chatV12SelectRoom(data);
+    chatMessage('Grupo criado com sucesso. Somente integrantes convidados podem participar.',true);
+  }catch(err){chatMessage('Não foi possível criar o grupo: '+err.message);}
+  finally{button.disabled=false;}
+});
+el('chatManageGroup').addEventListener('click',async()=>{
+  if(!chatIsAdmin||chatV12SelectedRoom?.tipo!=='grupo')return;
+  chatMessage('');
+  const {data,error}=await client.from('caarq_chat_participantes').select('user_id').eq('sala_id',chatV12SelectedRoom.id);
+  if(error){chatMessage('Falha ao consultar participantes: '+error.message);return;}
+  chatV12Checkboxes('chatGroupMemberChoices',(data||[]).map(p=>p.user_id));
+  el('chatGroupManagePanel').hidden=false;
+});
+el('chatCancelGroupMembers').addEventListener('click',()=>{el('chatGroupManagePanel').hidden=true;});
+el('chatSaveGroupMembers').addEventListener('click',async()=>{
+  if(!chatIsAdmin||chatV12SelectedRoom?.tipo!=='grupo')return;
+  const id=chatV12SelectedRoom.id,ids=chatV12SelectedCheckboxes('chatGroupMemberChoices');
+  if(!ids.length){chatMessage('O grupo precisa ter ao menos um integrante.');return;}
+  const button=el('chatSaveGroupMembers');button.disabled=true;
+  try{
+    const {error}=await client.rpc('caarq_chat_definir_participantes',{p_sala_id:id,p_membros:ids});
+    if(error)throw error;
+    el('chatGroupManagePanel').hidden=true;
+    chatMessage('Participantes atualizados com sucesso.',true);
+    await chatV12LoadRoomPeople(id);
+  }catch(err){chatMessage('Não foi possível atualizar participantes: '+err.message);}
+  finally{button.disabled=false;}
+});
+document.addEventListener('visibilitychange',()=>{
+  if(chatUser&&document.visibilityState==='visible')void chatV12LoadUnread();
+});
 
 
 // Iniciar autenticação SOMENTE após declarar todos os editores e eventos.

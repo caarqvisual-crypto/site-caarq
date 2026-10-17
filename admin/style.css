@@ -151,3 +151,35 @@ body{overflow-x:hidden}
 .chat-presence-dot.is-away{background:#9f9baa}
 .chat-side-heading,.chat-heading{flex-wrap:wrap}
 @media(max-width:540px){.chat-shell{border-radius:8px}.chat-message-list{padding:14px}.chat-form{padding:14px}.chat-bubble{max-width:95%}}
+
+
+/* CAARQ V12 — avatar circular, notificações e salas de chat */
+.chat-contact-photo{width:44px!important;height:44px!important;min-width:44px;flex:0 0 44px!important;aspect-ratio:1/1;position:relative;display:grid;place-items:center;border-radius:50%;isolation:isolate;padding:0;overflow:visible;}
+.chat-contact-photo img{display:block!important;width:44px!important;height:44px!important;max-width:44px!important;min-width:44px!important;max-height:44px!important;object-fit:cover!important;object-position:center!important;aspect-ratio:1/1;border-radius:50%!important;clip-path:circle(50%);}
+.chat-peer-photo,.chat-peer-photo img{border-radius:50%!important;aspect-ratio:1/1;object-fit:cover!important;object-position:center!important;}
+.chat-contact .chat-presence-dot{z-index:2;right:-1px;bottom:-1px;}
+.chat-contact-name{flex:1;min-width:0;}
+.chat-contact-name small{line-height:1.4;}
+.chat-badge{display:inline-flex;min-width:19px;height:19px;border-radius:30px;align-items:center;justify-content:center;background:#c32957;color:white;font-size:10px;font-weight:900;padding:0 5px;vertical-align:middle;margin-left:6px;box-shadow:0 0 0 2px #fff;}
+.chat-badge[hidden]{display:none!important;}
+.chat-badge.contact-unread{margin-left:auto;flex-shrink:0;}
+.chat-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 14px;}
+.chat-tab{padding:12px 17px;border:1px solid #dfd0e7;background:#fff;border-radius:8px;color:#573367;font-size:12px;font-weight:900;cursor:pointer;}
+.chat-tab.selected{background:#40194f;color:#fff;border-color:#40194f;}
+.chat-tab:focus-visible{outline:3px solid #b989e1;outline-offset:2px;}
+.chat-group-create{border-top:1px solid #e6d9e9;margin-top:20px;padding-top:15px;}
+.chat-group-create h4{color:#40194f;margin:0 0 13px;font-size:14px;}
+.chat-group-create label{font-size:11px;font-weight:800;display:block;margin-bottom:6px;}
+.chat-group-create input[type=text]{width:100%;min-width:0;border:1px solid #d8c6df;border-radius:7px;padding:12px 10px;background:#fff;font:inherit;font-size:12px;}
+.chat-group-create .primary-button{width:100%;font-size:11px;min-height:42px;margin-top:12px;}
+.chat-member-checks{display:grid;gap:5px;max-height:165px;overflow:auto;border:1px solid #ebdfed;background:#fff;border-radius:8px;padding:9px;}
+.chat-member-checks label{display:flex;align-items:center;gap:7px;font-size:11px;line-height:1.5;font-weight:600;margin:0;color:#46324a;cursor:pointer;}
+.chat-member-checks input{margin:0;flex-shrink:0;width:16px;height:16px;accent-color:#512565;}
+.chat-group-edit{border-bottom:1px solid #eadfed;padding:16px 20px;background:#fbf6fd;}
+.chat-group-edit .chat-member-checks{max-height:120px;grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:10px;}
+.chat-group-edit button{margin-right:5px;}
+.chat-room-pill{font-size:10px;font-weight:900;opacity:.6;}
+.chat-room-bubble-mention{background:#fff4d2;border:1px solid #f7d378;color:#432341;}
+.chat-room-bubble-mention.mine{background:#40194f;color:#fff;border:0;}
+.chat-manager .chat-shell .chat-message-list{min-height:300px;}
+@media(max-width:810px){.chat-tabs{margin-top:14px}.chat-group-edit .chat-member-checks{grid-template-columns:1fr}.chat-group-create .chat-member-checks{max-height:110px}}
