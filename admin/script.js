@@ -141,6 +141,7 @@ async function logout() {
   el('projectsManager').hidden = true;
   el('appearanceManager').hidden = true;
   el('profileManager').hidden = true;
+  el('notificationCenter').hidden = true;
   ownProfile = null;
   el('accountAvatar').replaceChildren(document.createTextNode('✦'));
   el('accountAlias').textContent = 'Meu perfil';
@@ -865,7 +866,7 @@ function chatName(userId){
   return profile?.apelido?.trim() || profile?.nome_exibicao?.trim() || account?.nome?.trim() || 'Integrante do CAARQ';
 }
 function chatHideOtherSections(){
-  ['membersManager','projectsManager','appearanceManager','profileManager','accessManager'].forEach(id=>{if(el(id))el(id).hidden=true;});
+  ['membersManager','projectsManager','appearanceManager','profileManager','accessManager','notificationCenter'].forEach(id=>{if(el(id))el(id).hidden=true;});
 }
 async function chatSetPresence(online){
   if(!chatUser) return;
@@ -910,6 +911,7 @@ async function chatDeactivate(){
   chatProfiles.clear();chatPresence.clear();chatPhotoUrls.clear();
   chatLastSignature='';
   el('chatManager').hidden=true;
+  el('notificationCenter').hidden=true;
 }
 async function chatLoadContacts(){
   if(!chatUser || !chatIsAdmin)return;
@@ -1051,7 +1053,7 @@ async function chatRefreshCurrent(scrollEnd=false){
   if(!chatMemberId)return;
   await chatLoadMessages(scrollEnd);
 }
-el('openChat').addEventListener('click',async()=>{
+async function chatOpenPanel(tab='direta', destinationId=null){
   if(!chatUser)return;
   chatHideOtherSections();el('chatManager').hidden=false;
   chatMessage('');
@@ -1062,10 +1064,18 @@ el('openChat').addEventListener('click',async()=>{
     el('chatMessageList').replaceChildren();
     const empty=document.createElement('p');empty.className='chat-empty';empty.textContent='Selecione um integrante na caixa de entrada.';el('chatMessageList').append(empty);
     await chatLoadContacts();
-  }else await chatSelectMember(chatUser.id);
-  chatV12SwitchTab('direta');
+  }else if(tab==='direta') await chatSelectMember(chatUser.id);
+  if(tab==='sala'){
+    await chatV12OpenGroupTab();
+    if(destinationId)await chatV12SelectRoom(destinationId);
+  }else{
+    chatV12SwitchTab('direta');
+    if(chatIsAdmin && destinationId)await chatSelectMember(destinationId);
+  }
   el('chatManager').scrollIntoView({behavior:'smooth',block:'start'});
-});
+}
+el('openChat').addEventListener('click',()=>void chatOpenPanel());
+
 el('closeChat').addEventListener('click',()=>{
   el('chatManager').hidden=true;
   el('dashboardView').scrollIntoView({behavior:'smooth',block:'start'});
@@ -1106,10 +1116,15 @@ document.addEventListener('visibilitychange',()=>{
   }
 });
 // Ao entrar em outro editor, fechar apenas a visualização do chat, sem apagar a conversa.
-for(const id of ['openProfile','openMembers','openProjects','openAppearance','openAccess']){
+for(const id of ['openProfile','openMembers','openProjects','openAppearance','openAccess','openNotifications','openNotificationsTop']){
   el(id)?.addEventListener('click',()=>{el('chatManager').hidden=true;},{capture:true});
 }
 
+
+// Atualização V13: trocar para outra ferramenta fecha somente a Central de Notificações.
+for(const id of ['openProfile','openMembers','openProjects','openAppearance','openAccess']){
+  el(id)?.addEventListener('click',()=>{el('notificationCenter').hidden=true;},{capture:true});
+}
 
 // CAARQ V12.1 — permissão individual para criação de grupos
 // CAARQ V12 — salas privadas, chat geral, grupos e notificações de mensagens não lidas.
@@ -1143,6 +1158,8 @@ function chatV12UpdateBadge(){
   badge.hidden=!count;
   badge.textContent=count>99?'99+':String(count);
   el('chatTile').setAttribute('aria-label', count?count+' mensagens não lidas':'Mensagens');
+  notificationUpdateTotal(count);
+  if(!el('notificationCenter').hidden) notificationRender();
   if(chatIsAdmin)chatRenderContacts();
   chatV12RenderRooms();
 }
@@ -1422,6 +1439,93 @@ document.addEventListener('visibilitychange',()=>{
   if(chatUser&&document.visibilityState==='visible')void chatV12LoadUnread();
 });
 
+
+// CAARQ V13 — central única para notificações de mensagens do próprio login.
+// Consulta SOMENTE as contagens já autorizadas pelo RPC caarq_chat_nao_lidas,
+// sem guardar mensagens em localStorage e sem criar permissões novas.
+let notificationFilter='todas';
+function notificationUpdateTotal(count){
+  for(const id of ['notificationTopBadge','notificationTileBadge']){
+    const badge=el(id); if(!badge)continue;
+    badge.hidden=count===0;badge.textContent=count>99?'99+':String(count);
+  }
+  const bell=el('openNotificationsTop');
+  if(bell)bell.setAttribute('aria-label',count?`Notificações: ${count} mensagens não lidas`:'Abrir Central de Notificações');
+  const status=el('notificationTotalText');
+  if(status)status.textContent=count===0?'Nenhuma mensagem pendente':`${count} mensagem${count===1?'':'ns'} não lida${count===1?'':'s'}`;
+}
+function notificationRender(){
+  const list=el('notificationList');if(!list)return;
+  list.replaceChildren();
+  const notifications=[];
+  for(const [key,count] of chatV12Unread){
+    if(count<=0)continue;
+    const boundary=key.indexOf(':');if(boundary<1)continue;
+    const type=key.slice(0,boundary),id=key.slice(boundary+1);
+    if(type!=='direta'&&type!=='sala')continue;
+    if(notificationFilter!=='todas'&&type!==notificationFilter)continue;
+    const room=type==='sala'?chatV12Rooms.find(r=>r.id===id):null;
+    const name=type==='direta'
+      ?(chatIsAdmin?chatName(id):'Administração Geral')
+      :(room?.nome||'Chat geral ou grupo');
+    notifications.push({id,type,count,name,roomType:room?.tipo||null});
+  }
+  notifications.sort((a,b)=>b.count-a.count||a.name.localeCompare(b.name,'pt-BR'));
+  if(!notifications.length){
+    const empty=document.createElement('div');empty.className='notification-empty';
+    const ico=document.createElement('span');ico.className='notification-empty-icon';ico.textContent='✓';
+    const title=document.createElement('strong');title.textContent=notificationFilter==='todas'?'Tudo em dia!':'Nenhuma mensagem nesta categoria';
+    const detail=document.createElement('p');detail.textContent='Quando chegarem mensagens novas, você verá um aviso aqui.';
+    empty.append(ico,title,detail);list.append(empty);return;
+  }
+  for(const n of notifications){
+    const b=document.createElement('button');b.type='button';b.className='notification-entry';
+    const icon=document.createElement('span');icon.className='notification-entry-icon';
+    icon.textContent=n.type==='direta'?'✉':n.roomType==='geral'?'📣':'👥';
+    const info=document.createElement('span');info.className='notification-entry-info';
+    const title=document.createElement('strong');title.textContent=n.name;
+    const detail=document.createElement('small');detail.textContent=(n.type==='direta'?'Conversa privada':n.roomType==='geral'?'Chat geral':'Conversa em grupo')+' · Clique para ler';
+    info.append(title,detail);
+    const qty=document.createElement('span');qty.className='notification-entry-count';qty.textContent=n.count>99?'99+':String(n.count);
+    b.append(icon,info,qty);
+    b.addEventListener('click',()=>void chatOpenPanel(n.type==='sala'?'sala':'direta',n.id));
+    list.append(b);
+  }
+}
+async function notificationOpen(){
+  if(!chatUser)return;
+  chatHideOtherSections();el('chatManager').hidden=true;
+  el('notificationCenter').hidden=false;
+  el('notificationCenter').scrollIntoView({behavior:'smooth',block:'start'});
+  el('notificationTotalText').textContent='Atualizando notificações…';
+  await Promise.all([
+    chatV12LoadRooms(),
+    chatIsAdmin && !chatContacts.length ? chatLoadContacts() : Promise.resolve()
+  ]);
+  // Um RPC já autorizado calcula as mensagens não lidas para esta conta.
+  await chatV12LoadUnread();
+  notificationUpdateTotal([...chatV12Unread.values()].reduce((sum,value)=>sum+value,0));
+  notificationRender();
+}
+for(const id of ['openNotifications','openNotificationsTop']){
+  el(id).addEventListener('click',()=>void notificationOpen());
+}
+el('closeNotifications').addEventListener('click',()=>{
+  el('notificationCenter').hidden=true;
+  el('dashboardView').scrollIntoView({behavior:'smooth',block:'start'});
+});
+el('refreshNotifications').addEventListener('click',()=>void notificationOpen());
+for(const button of document.querySelectorAll('[data-notification-filter]')){
+  button.addEventListener('click',()=>{
+    notificationFilter=button.dataset.notificationFilter;
+    for(const elFilter of document.querySelectorAll('[data-notification-filter]')){
+      const active=elFilter.dataset.notificationFilter===notificationFilter;
+      elFilter.classList.toggle('selected',active);
+      elFilter.setAttribute('aria-pressed',String(active));
+    }
+    notificationRender();
+  });
+}
 
 // Iniciar autenticação SOMENTE após declarar todos os editores e eventos.
 try {

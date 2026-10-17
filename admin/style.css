@@ -183,3 +183,32 @@ body{overflow-x:hidden}
 .chat-room-bubble-mention.mine{background:#40194f;color:#fff;border:0;}
 .chat-manager .chat-shell .chat-message-list{min-height:300px;}
 @media(max-width:810px){.chat-tabs{margin-top:14px}.chat-group-edit .chat-member-checks{grid-template-columns:1fr}.chat-group-create .chat-member-checks{max-height:110px}}
+
+
+/* CAARQ V13 — Central de notificações de mensagens não lidas */
+.account-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap;justify-content:flex-end;}
+.notification-bell{display:inline-flex;align-items:center;gap:8px;border:1px solid #dbc9e1;border-radius:7px;background:#fbf4fd;color:#40194f;padding:10px 12px;font:800 11px Montserrat,Arial,sans-serif;cursor:pointer;white-space:nowrap;}
+.notification-bell:hover,.notification-bell:focus-visible{background:#eee0f2;outline-color:#ab81ba;}
+.notification-tile{background:linear-gradient(145deg,#fffaf0,#faf3fd);border-color:#d8bfe3;}
+.notification-tile .tile-icon{color:#8c4e9b;}
+.notification-block{padding:27px;}
+.notification-topline{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:23px;}
+.notification-topline strong{display:block;color:#3b1a4a;font-size:17px;line-height:1.4;}
+.notification-topline small{display:block;color:#74647b;font-size:11px;line-height:1.8;margin-top:4px;}
+.notification-filter{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;}
+.notification-filter-button{border:1px solid #e1d3e8;border-radius:7px;background:white;color:#563466;font-weight:800;font-size:11px;line-height:1.4;padding:11px 13px;cursor:pointer;}
+.notification-filter-button.selected{background:#40194f;border-color:#40194f;color:#fff;}
+.notification-filter-button:focus-visible{outline:3px solid #b989e1;outline-offset:2px;}
+.notification-list{display:grid;gap:11px;}
+.notification-entry{width:100%;border:1px solid #e1d3e8;border-left:4px solid #bd669a;border-radius:9px;background:#fff;display:flex;align-items:center;gap:15px;padding:18px;cursor:pointer;text-align:left;color:#3b1a4a;}
+.notification-entry:hover,.notification-entry:focus-visible{background:#fbf4ff;border-color:#9870a5;outline-color:#b989e1;}
+.notification-entry-icon{display:grid;place-items:center;width:45px;height:45px;flex-shrink:0;border-radius:50%;background:#f1e5f6;color:#50205f;font-size:19px;}
+.notification-entry-info{display:flex;flex-direction:column;gap:5px;flex:1;min-width:0;}
+.notification-entry-info strong{font-size:13px;overflow-wrap:anywhere;}
+.notification-entry-info small{font-size:11px;line-height:1.5;color:#77657e;}
+.notification-entry-count{min-width:28px;height:26px;border-radius:30px;background:#bf315c;color:white;display:inline-grid;place-items:center;padding:0 9px;font-size:11px;font-weight:900;}
+.notification-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;padding:55px 20px;background:#faf7fc;border:1px dashed #dac8e2;border-radius:10px;}
+.notification-empty-icon{font-size:31px;}
+.notification-empty strong{font-size:18px;color:#40194f;}
+.notification-empty p{font-size:12px;color:#806e88;line-height:1.7;margin:0;}
+@media(max-width:680px){.account-actions{justify-content:flex-start;width:100%;}.notification-bell{flex:1;justify-content:center;}.notification-block{padding:15px;}.notification-entry{padding:13px;gap:11px;}.notification-entry-icon{height:40px;width:40px;}.notification-filter-button{flex:1;}.notification-bell span:not(.chat-badge){display:inline;}}
