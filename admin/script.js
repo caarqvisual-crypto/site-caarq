@@ -50,6 +50,7 @@ async function checkAccess() {
   if (['admin', 'editor'].includes(currentRole)) await loadData();
   el('accountEmail').textContent = user.email || 'Membro autorizado';
   show('dashboardView');
+  void loadOwnProfile(user);
 }
 
 el('togglePassword').addEventListener('click', () => {
@@ -99,6 +100,10 @@ async function logout() {
   el('membersManager').hidden = true;
   el('projectsManager').hidden = true;
   el('appearanceManager').hidden = true;
+  el('profileManager').hidden = true;
+  ownProfile = null;
+  el('accountAvatar').replaceChildren(document.createTextNode('✦'));
+  el('accountAlias').textContent = 'Meu perfil';
   show('loading');
   await client.auth.signOut();
   show('loginView');
@@ -246,6 +251,7 @@ el('openMembers').addEventListener('click',async()=>{
   el('membersManager').hidden=false;
   el('appearanceManager').hidden=true;
   el('projectsManager').hidden=true;
+  el('profileManager').hidden=true;
   if(!recordsLoaded)await loadData();
   el('membersManager').scrollIntoView({behavior:'smooth',block:'start'});
 });
@@ -336,7 +342,7 @@ function activityRender(){const host=el('activitiesList');host.replaceChildren()
   }
 }
 async function loadActivities(){if(!isEditor())return;try{const {data,error}=await client.from('caarq_atividades').select('*').order('criado_em',{ascending:false});if(error)throw error;activities=data||[];activitiesLoaded=true;activityRender();}catch(error){console.error('Erro ao carregar atividades',error);activityFeedback('Não foi possível carregar atividades. Confirme se o SQL de projetos foi executado no Supabase.');}}
-el('openProjects').addEventListener('click',async()=>{if(!isEditor())return;el('membersManager').hidden=true;el('appearanceManager').hidden=true;el('projectsManager').hidden=false;if(!activitiesLoaded)await loadActivities();el('projectsManager').scrollIntoView({behavior:'smooth',block:'start'});});
+el('openProjects').addEventListener('click',async()=>{if(!isEditor())return;el('membersManager').hidden=true;el('appearanceManager').hidden=true;el('profileManager').hidden=true;el('projectsManager').hidden=false;if(!activitiesLoaded)await loadActivities();el('projectsManager').scrollIntoView({behavior:'smooth',block:'start'});});
 el('closeProjects').addEventListener('click',()=>{el('projectsManager').hidden=true;el('dashboardView').scrollIntoView({behavior:'smooth',block:'start'});});
 el('clearActivity').addEventListener('click',activityFormClear);
 el('activityFilter').addEventListener('change',activityRender);
@@ -418,7 +424,7 @@ async function loadAppearance(){
 }
 el('openAppearance').addEventListener('click',async()=>{
  if(currentRole!=='admin')return;
- el('membersManager').hidden=true;el('projectsManager').hidden=true;el('appearanceManager').hidden=false;
+ el('membersManager').hidden=true;el('projectsManager').hidden=true;el('profileManager').hidden=true;el('appearanceManager').hidden=false;
  await loadAppearance();
  el('appearanceManager').scrollIntoView({behavior:'smooth',block:'start'});
 });
@@ -481,6 +487,146 @@ async function loadAdminBrand(){
 }
 void loadAdminBrand();
 
+
+
+// V9 — Meu Perfil: dados de exibição independentes das funções administrativas.
+// O Supabase exige autenticação ativa e RLS de proprietário para escrita/leitura.
+let ownProfile = null;
+let ownProfileUser = null;
+let profilePreviewObjectUrl = null;
+let profileStoredPhotoUrl = null;
+let profileSaving = false;
+function profileNotice(message,success=false){ notice('profileFeedback',message,success); }
+function profileImage(target, url){
+  target.replaceChildren();
+  if (!url) { target.textContent='✦'; return; }
+  const img = document.createElement('img');
+  img.src=url;img.alt='Foto do seu perfil';img.loading='lazy';
+  img.addEventListener('error',()=>{ if(img.parentNode===target)target.replaceChildren(document.createTextNode('✦')); });
+  target.appendChild(img);
+}
+function clearProfilePreviewObject(){
+ if(profilePreviewObjectUrl){ URL.revokeObjectURL(profilePreviewObjectUrl); profilePreviewObjectUrl=null; }
+}
+function profileCard(){
+ const name=ownProfile?.nome_exibicao?.trim()||ownProfile?.apelido?.trim()||'Meu perfil CAARQ';
+ el('accountAlias').textContent=name;
+ el('profilePreviewName').textContent=name;
+ el('profilePreviewEmail').textContent=ownProfileUser?.email||'Conta autorizada';
+ el('profileRoleLabel').textContent=roleNames[currentRole]||'Membro do CAARQ';
+ profileImage(el('accountAvatar'),profileStoredPhotoUrl);
+ if(!profilePreviewObjectUrl)profileImage(el('profileAvatar'),profileStoredPhotoUrl);
+}
+function fillOwnProfileForm(){
+ el('profileName').value=ownProfile?.nome_exibicao||'';
+ el('profileNickname').value=ownProfile?.apelido||'';
+ el('profileBio').value=ownProfile?.biografia||'';
+ el('profilePhoto').value='';
+ el('profileRemovePhoto').checked=false;
+ clearProfilePreviewObject();
+ profileCard();
+}
+async function loadOwnProfile(user){
+ try{
+  if(!currentRole)return;
+  ownProfileUser=user||(await client.auth.getUser()).data.user;
+  if(!ownProfileUser)return;
+  const {data,error}=await client.from('caarq_perfis').select('user_id,nome_exibicao,apelido,biografia,foto_caminho').eq('user_id',ownProfileUser.id).maybeSingle();
+  if(error)throw error;
+  ownProfile=data||null;
+  profileStoredPhotoUrl=null;
+  if(ownProfile?.foto_caminho){
+   const {data:link,error:linkError}=await client.storage.from('caarq-perfis').createSignedUrl(ownProfile.foto_caminho,3600);
+   if(!linkError)profileStoredPhotoUrl=link.signedUrl;
+  }
+  fillOwnProfileForm();
+  profileNotice('');
+ }catch(error){
+  console.error('Erro ao carregar meu perfil',error);
+  profileNotice('O perfil ainda não pôde ser carregado. Confira se executou o SQL da versão 9 no Supabase.');
+ }
+}
+el('openProfile').addEventListener('click',async()=>{
+ if(!currentRole)return;
+ el('membersManager').hidden=true;el('projectsManager').hidden=true;el('appearanceManager').hidden=true;
+ el('profileManager').hidden=false;
+ await loadOwnProfile();
+ el('profileManager').scrollIntoView({behavior:'smooth',block:'start'});
+});
+el('closeProfile').addEventListener('click',()=>{
+ el('profileManager').hidden=true;
+ clearProfilePreviewObject();
+ el('dashboardView').scrollIntoView({behavior:'smooth',block:'start'});
+});
+el('profileName').addEventListener('input',()=>{
+ el('profilePreviewName').textContent=el('profileName').value.trim()||el('profileNickname').value.trim()||'Meu perfil CAARQ';
+});
+el('profileNickname').addEventListener('input',()=>{
+ el('profilePreviewName').textContent=el('profileName').value.trim()||el('profileNickname').value.trim()||'Meu perfil CAARQ';
+});
+el('profilePhoto').addEventListener('change',()=>{
+ clearProfilePreviewObject();
+ const file=el('profilePhoto').files?.[0];
+ if(file){
+  profilePreviewObjectUrl=URL.createObjectURL(file);
+  profileImage(el('profileAvatar'),profilePreviewObjectUrl);
+  el('profileRemovePhoto').checked=false;
+ }else profileImage(el('profileAvatar'),profileStoredPhotoUrl);
+});
+el('profileRemovePhoto').addEventListener('change',()=>{
+ if(el('profileRemovePhoto').checked){
+  el('profilePhoto').value='';clearProfilePreviewObject();profileImage(el('profileAvatar'),null);
+ }else profileImage(el('profileAvatar'),profileStoredPhotoUrl);
+});
+el('reloadProfile').addEventListener('click',async()=>{
+ profileNotice('');await loadOwnProfile();
+});
+el('profileForm').addEventListener('submit',async e=>{
+ e.preventDefault();
+ if(profileSaving||!currentRole)return;
+ profileNotice('');
+ const {data:{user},error:userError}=await client.auth.getUser();
+ if(userError||!user){profileNotice('Sua sessão expirou. Entre novamente.');return;}
+ const nome=el('profileName').value.trim();
+ const apelido=el('profileNickname').value.trim();
+ const bio=el('profileBio').value.trim();
+ if((nome&&nome.length>90)||(apelido&&apelido.length>40)||bio.length>400){profileNotice('Algum campo ultrapassou o limite permitido.');return;}
+ const file=el('profilePhoto').files?.[0];
+ if(file&&(file.size>2*1024*1024||!['image/png','image/jpeg','image/webp'].includes(file.type))){profileNotice('Escolha PNG, JPG ou WebP com até 2 MB.');return;}
+ profileSaving=true;
+ el('saveProfile').disabled=true;
+ el('saveProfile').textContent='Salvando…';
+ let uploadedPath=null;
+ const oldPath=ownProfile?.foto_caminho||null;
+ try{
+  let photoPath=el('profileRemovePhoto').checked?null:oldPath;
+  if(file){
+   const ext={'image/png':'png','image/jpeg':'jpg','image/webp':'webp'}[file.type];
+   uploadedPath=`${user.id}/${crypto.randomUUID()}.${ext}`;
+   const {error:uploadError}=await client.storage.from('caarq-perfis').upload(uploadedPath,file,{contentType:file.type,upsert:false,cacheControl:'3600'});
+   if(uploadError)throw uploadError;
+   photoPath=uploadedPath;
+  }
+  const values={user_id:user.id,nome_exibicao:nome||null,apelido:apelido||null,biografia:bio||null,foto_caminho:photoPath,atualizado_em:new Date().toISOString()};
+  const {error}=await client.from('caarq_perfis').upsert(values,{onConflict:'user_id'});
+  if(error)throw error;
+  if(oldPath&&oldPath!==photoPath){
+   // Limpeza do arquivo antigo, se ainda pertencer à própria conta.
+   void client.storage.from('caarq-perfis').remove([oldPath]);
+  }
+  uploadedPath=null;
+  await loadOwnProfile(user);
+  profileNotice('Perfil salvo! Sua foto e seu apelido já aparecem no painel.',true);
+ }catch(error){
+  console.error('Salvar perfil',error);
+  if(uploadedPath)await client.storage.from('caarq-perfis').remove([uploadedPath]);
+  profileNotice('Não foi possível salvar o perfil. Confira a conexão e o SQL da versão 9.');
+ }finally{
+  profileSaving=false;
+  el('saveProfile').disabled=false;
+  el('saveProfile').textContent='Salvar meu perfil ↗';
+ }
+});
 
 // Iniciar autenticação SOMENTE após declarar todos os editores e eventos.
 try {

@@ -95,3 +95,22 @@ body{overflow-x:hidden}
 .theme-preview>p:last-child{font-size:12px;line-height:1.7;max-width:500px;margin:0;color:#f3eaf8}
 .theme-save-actions .primary-button{min-width:210px}
 @media(max-width:540px){.theme-presets{flex-direction:column}.theme-preset{width:100%}}
+
+
+/* V9 — Meu perfil: visual do próprio integrante */
+.account-identity{display:flex;align-items:center;gap:12px;min-width:0}
+.account-avatar{display:grid;place-items:center;width:50px;height:50px;flex-shrink:0;border-radius:50%;background:var(--purple);color:var(--yellow);font-size:25px;overflow:hidden;border:3px solid #eaddeb}
+.account-avatar img,.profile-avatar img{width:100%;height:100%;object-fit:cover;display:block}
+.account-identity>div:last-child{min-width:0}
+.account-identity strong{display:block;font-size:14px;line-height:1.45;overflow-wrap:anywhere}
+.account-email{display:block;font-weight:600;font-size:11px;color:var(--muted);overflow-wrap:anywhere;margin-top:4px}
+.tile-profile{background:linear-gradient(135deg,#fffaf2,#f6ebfa)}
+.profile-block{border-top:5px solid var(--yellow);padding-top:30px}
+.profile-preview{display:flex;gap:22px;align-items:center;background:#f8f2fa;border:1px solid #eaddeb;border-radius:12px;padding:24px;margin-bottom:28px}
+.profile-avatar{width:112px;height:112px;display:grid;place-items:center;flex-shrink:0;background:var(--purple);color:var(--yellow);font-weight:900;font-size:52px;border-radius:50%;border:5px solid white;box-shadow:0 8px 25px #35134725;overflow:hidden}
+.profile-preview-copy{min-width:0}
+.profile-preview-copy h4{font-size:clamp(21px,2.2vw,29px);line-height:1.15;color:var(--purple);letter-spacing:-.045em;margin:8px 0 5px;overflow-wrap:anywhere}
+.profile-preview-copy>p{font-size:11px;line-height:1.6;color:var(--muted);margin:0 0 13px;overflow-wrap:anywhere}
+.profile-role-pill{display:inline-flex;background:#e9d9f1;color:var(--purple);border-radius:30px;padding:6px 10px;font-size:10px;font-weight:800}
+.profile-manager .edit-form input[type=file]{padding:10px;min-height:52px}
+@media(max-width:540px){.profile-preview{flex-direction:column;text-align:center;padding:20px;gap:12px}.profile-avatar{width:94px;height:94px}.account-identity{align-items:flex-start}.account-avatar{width:44px;height:44px}}
