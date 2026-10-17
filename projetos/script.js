@@ -23,7 +23,7 @@ function shade(c,factor){return '#'+[1,3,5].map(i=>Math.max(0,Math.min(255,Math.
 function appearanceImageUrl(value){try{const u=new URL(value);return u.protocol==='https:'?u.href:null;}catch{return null;}}
 async function applySharedAppearance(){
  try{
-  const {data,error}=await client.from('caarq_aparencia').select('primary_color,accent_color,logo_url').eq('id',1).maybeSingle();
+  const {data,error}=await client.from('caarq_aparencia').select('primary_color,accent_color,background_color,surface_color,text_color,font_family,corner_radius,logo_url').eq('id',1).maybeSingle();
   if(error||!data)return;
   const root=document.documentElement;
   if(validAppearanceColor(data.primary_color)){
@@ -32,6 +32,14 @@ async function applySharedAppearance(){
    root.style.setProperty('--violet',shade(data.primary_color,1.25));
   }
   if(validAppearanceColor(data.accent_color))root.style.setProperty('--yellow',data.accent_color);
+  const available=['Montserrat','Arial','Georgia','Verdana','Trebuchet MS'];
+  const font=available.includes(data.font_family)?data.font_family:'Montserrat';
+  document.body.style.fontFamily=`"${font}",Arial,sans-serif`;
+  if(validAppearanceColor(data.background_color)){root.style.setProperty('--paper',data.background_color);root.style.setProperty('--cream',data.background_color);}
+  if(validAppearanceColor(data.text_color)){root.style.setProperty('--plum',data.text_color);root.style.setProperty('--site-text',data.text_color);}
+  if(validAppearanceColor(data.surface_color))root.style.setProperty('--site-surface',data.surface_color);
+  const radius=[0,8,16,24].includes(Number(data.corner_radius))?Number(data.corner_radius):8;
+  root.style.setProperty('--site-radius',radius+'px');
   const logo=appearanceImageUrl(data.logo_url);
   if(logo){
    for(const img of document.querySelectorAll('.brand img,.hero-logo img')){
