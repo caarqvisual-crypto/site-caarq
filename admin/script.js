@@ -10,7 +10,7 @@ const client = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
 
 const el = id => document.getElementById(id);
 const screens = ['loading', 'loginView', 'passwordView', 'deniedView', 'dashboardView'];
-const show = name => screens.forEach(id => { el(id).hidden = id !== name; });
+const show = name => { screens.forEach(id => { el(id).hidden = id !== name; }); document.body.classList.toggle('dashboard-active', name === 'dashboardView'); };
 function notice(id, message, success = false) {
   const box = el(id);
   box.textContent = message;

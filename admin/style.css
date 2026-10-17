@@ -22,3 +22,58 @@
 
 /* Identidade CAARQ + painel de atividades */
 .admin-real-logo{width:64px;height:64px;object-fit:contain;background:#ffffff17;border-radius:10px;padding:4px;flex:0 0 auto}.top-brand{display:flex;align-items:center;gap:13px}.file-help{display:block;color:#7d7083;font-size:11px;line-height:1.5;margin-top:-12px;margin-bottom:16px}.record-actions .action-danger{color:#a73838;border-color:#e7bebe}.record-actions .action-danger:hover{background:#ffecec}
+
+/* V5 — visual repairs: dashboard has space to breathe on every viewport */
+html{scroll-behavior:smooth}
+body{overflow-x:hidden}
+.auth-panel,.dashboard,.manager-block,.records-list,.edit-form{min-width:0}
+.auth-panel h2,.dashboard h2,.manager-top h3,h1{overflow-wrap:break-word;word-break:normal}
+.intro-panel{min-width:0}
+.content-panel{min-width:0}
+.dashboard-active .layout{display:grid;grid-template-columns:245px minmax(0,1fr);align-items:stretch}
+.dashboard-active .intro-panel{padding:28px 18px;min-height:100vh;position:sticky;top:0;height:100vh;overflow:hidden}
+.dashboard-active .intro-main{margin:32px 0 auto;padding:12px 0}
+.dashboard-active .intro-main h1{font-size:clamp(32px,3vw,46px);letter-spacing:-.055em;line-height:1.1;margin:13px 0}
+.dashboard-active .intro-main p:not(.eyebrow){font-size:12px;line-height:1.7}
+.dashboard-active .symbol-board{display:none}
+.dashboard-active .top-brand{font-size:16px;letter-spacing:.01em;gap:10px}
+.dashboard-active .top-brand small{font-size:10px}
+.dashboard-active .admin-real-logo{width:48px;height:48px}
+.dashboard-active .panel-footer{flex-direction:column;gap:10px;font-size:9px}
+.dashboard-active .content-panel{padding:27px clamp(20px,3.8vw,65px) 26px;min-height:100vh;max-width:none}
+.dashboard-active .dashboard{max-width:1250px;width:100%;margin:44px auto 0;padding-bottom:45px}
+.dashboard-active .dashboard-head h2{font-size:clamp(32px,3.8vw,55px)}
+.dashboard-active .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+.dashboard-active .manager-block{padding:24px;max-width:100%}
+.dashboard-active .form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.dashboard-active .intro-panel:after{opacity:.03}
+.topline{flex-wrap:wrap}
+.tile{overflow:hidden}
+.record-title,.record-sub{overflow-wrap:anywhere}
+@media(max-width:1050px){
+.dashboard-active .layout{grid-template-columns:190px minmax(0,1fr)}
+.dashboard-active .intro-panel{padding:24px 14px}
+.dashboard-active .intro-main h1{font-size:34px}
+.dashboard-active .content-panel{padding:26px 20px}
+}
+@media(max-width:780px){
+.layout,.dashboard-active .layout{display:block}
+.dashboard-active .intro-panel{position:relative;top:auto;height:auto;min-height:0;padding:16px 18px}
+.dashboard-active .intro-main,.dashboard-active .panel-footer{display:none}
+.dashboard-active .content-panel{padding:22px 18px;min-height:0}
+.dashboard-active .dashboard{margin:28px 0 0}
+.dashboard-active .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+.dashboard-active .form-grid{grid-template-columns:1fr}
+.dashboard-active .form-grid .form-full{grid-column:1}
+.dashboard-active .manager-block{padding:20px}
+}
+@media(max-width:540px){
+.dashboard-active .tiles{grid-template-columns:1fr}
+.dashboard-active .dashboard-head{display:block}
+.dashboard-active .account-strip{flex-direction:column;align-items:flex-start}
+.dashboard-active .manager-block{padding:14px}
+.dashboard-active .manager-top{flex-direction:column}
+.dashboard-active .manager-top .logout-button{white-space:normal}
+.dashboard-active .record,.record-actions{max-width:100%}
+.dashboard-active .record{flex-wrap:wrap}
+}
