@@ -21,7 +21,7 @@ const roleNames = { admin: 'Administração geral', editor: 'Editoria', loja: 'I
 let latestSession = null;
 let isSettingPassword = false;
 let currentRole = null;
-let currentPermissions = {pode_membros:false,pode_projetos:false,pode_aparencia:false,pode_loca:false,pode_criar_grupos:false,trocar_senha:false};
+let currentPermissions = {pode_membros:false,pode_projetos:false,pode_aparencia:false,pode_loca:false,pode_loca_precos:false,pode_loca_visual:false,pode_criar_grupos:false,trocar_senha:false};
 const canEditMembers = () => currentRole === 'admin' || currentPermissions.pode_membros;
 const canEditProjects = () => currentRole === 'admin' || currentPermissions.pode_projetos;
 const canEditAppearance = () => currentRole === 'admin' || currentPermissions.pode_aparencia;
@@ -49,7 +49,7 @@ async function checkAccess() {
   }
   currentRole = membership.role;
   const {data:access,error:accessError} = await client.from('caarq_acessos')
-    .select('pode_membros,pode_projetos,pode_aparencia,pode_loca,pode_criar_grupos,trocar_senha')
+    .select('pode_membros,pode_projetos,pode_aparencia,pode_loca,pode_loca_precos,pode_loca_visual,pode_criar_grupos,trocar_senha')
     .eq('user_id',user.id).maybeSingle();
   if (accessError || !access) {
     show('deniedView');
@@ -68,6 +68,7 @@ async function checkAccess() {
   el('membersTile').hidden = !canEditMembers();
   el('appearanceTile').hidden = !canEditAppearance();
   el('projectsTile').hidden = !canEditProjects();
+  el('locaTile').hidden = !(currentRole === 'admin' || access.pode_loca || access.pode_loca_precos || access.pode_loca_visual);
   el('accessTile').hidden = currentRole !== 'admin';
   el('auditTile').hidden = currentRole !== 'admin';
   if (canEditMembers()) await loadData();
@@ -136,7 +137,7 @@ el('passwordForm').addEventListener('submit', async event => {
 async function logout() {
   await chatDeactivate();
   currentRole = null;
-  currentPermissions={pode_membros:false,pode_projetos:false,pode_aparencia:false,pode_loca:false,pode_criar_grupos:false,trocar_senha:false};
+  currentPermissions={pode_membros:false,pode_projetos:false,pode_aparencia:false,pode_loca:false,pode_loca_precos:false,pode_loca_visual:false,pode_criar_grupos:false,trocar_senha:false};
   el('accessManager').hidden = true;
   el('membersManager').hidden = true;
   el('projectsManager').hidden = true;
@@ -676,7 +677,9 @@ const accessRoles = {
   pode_membros: 'Integrantes e gestões',
   pode_projetos: 'Projetos e calendário',
   pode_aparencia: 'Aparência do site',
-  pode_loca: 'Loja LOCA (em construção)',
+  pode_loca: 'LOCA — cadastrar produtos e fotos',
+  pode_loca_precos: 'LOCA — alterar preços',
+  pode_loca_visual: 'LOCA — banner e apresentação',
   pode_criar_grupos: 'Pode criar grupos no chat',
 };
 const accessFields = Object.keys(accessRoles);
@@ -698,6 +701,8 @@ function userPermsFromForm(prefix){
     pode_projetos:el('newPermProjects').checked,
     pode_aparencia:el('newPermAppearance').checked,
     pode_loca:el('newPermLoca').checked,
+    pode_loca_precos:el('newPermLocaPrice').checked,
+    pode_loca_visual:el('newPermLocaVisual').checked,
     pode_criar_grupos:el('newPermGroups').checked,
   };
   return accessFields.reduce((acc,key)=>({...acc,[key]:el(prefix+'-'+key)?.checked===true}),{});
@@ -1603,6 +1608,255 @@ el('auditLoadMore').addEventListener('click',()=>void auditLoad(true));
 for(const id of ['openProfile','openMembers','openProjects','openAppearance','openAccess','openNotifications','openNotificationsTop','openChat']) {
   el(id)?.addEventListener('click',()=>{el('auditManager').hidden=true;},{capture:true});
 }
+
+
+// CAARQ V15 — LOCA. Operações cotidianas são feitas pelo painel;
+// autorização efetiva fica no Supabase (RLS + RPC + trigger de preço).
+let locaProducts = [];
+let locaPhotos = [];
+let locaConfig = null;
+let locaLoading = false;
+const locaCanProducts = () => currentRole === 'admin' || currentPermissions.pode_loca === true;
+const locaCanPrices = () => currentRole === 'admin' || currentPermissions.pode_loca_precos === true;
+const locaCanVisual = () => currentRole === 'admin' || currentPermissions.pode_loca_visual === true;
+const locaCanAny = () => locaCanProducts() || locaCanPrices() || locaCanVisual();
+const locaMoney = cents => cents === null || cents === undefined ? 'Preço sob consulta' :
+  new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(cents/100);
+const locaStatus = {disponivel:'Disponível',sob_encomenda:'Sob encomenda',esgotado:'Esgotado'};
+function locaNotice(message,success=false){notice('locaFeedback',message,success);}
+function locaHttpUrl(value){
+  const v=(value||'').trim();
+  if(!v)return null;
+  try{const url=new URL(v);if(!['https:','http:'].includes(url.protocol))throw Error();return url.href;}
+  catch{throw new Error('Use um link válido começando com https:// ou http://.');}
+}
+function locaFileOk(file){
+  return file && file.size<=5*1024*1024 && ['image/png','image/jpeg','image/webp'].includes(file.type);
+}
+async function locaUpload(file,prefix){
+  if(!locaFileOk(file))throw new Error('Imagem inválida. Use JPEG, PNG ou WebP de até 5 MB.');
+  const ext={'image/jpeg':'jpg','image/png':'png','image/webp':'webp'}[file.type];
+  const path=`${prefix}/${crypto.randomUUID()}.${ext}`;
+  const {error}=await client.storage.from('caarq-loca').upload(path,file,{upsert:false,contentType:file.type,cacheControl:'3600'});
+  if(error)throw new Error('Falha no envio da imagem. Confira as permissões e o tamanho.');
+  const {data}=client.storage.from('caarq-loca').getPublicUrl(path);
+  return {path,url:data.publicUrl};
+}
+function locaRenderPhotoEditor(id){
+  const pane=el('locaPhotosEditor'), target=el('locaProductPhotos');
+  pane.hidden=!id||!locaCanProducts();target.replaceChildren();
+  if(pane.hidden)return;
+  const photos=locaPhotos.filter(f=>f.produto_id===id);
+  if(!photos.length){target.append(node('p','empty-records','Este produto ainda não tem fotos.'));return;}
+  for(const photo of photos){
+    const item=node('div','loca-photo-item');
+    const img=node('img');img.src=photo.url;img.alt=photo.legenda||'Foto do produto';img.loading='lazy';
+    const btn=action('Remover foto',async()=>{
+      if(!confirm('Remover esta foto do produto?'))return;
+      btn.disabled=true;
+      try{
+        const {error}=await client.from('caarq_loca_fotos').delete().eq('id',photo.id);
+        if(error)throw error;
+        await client.storage.from('caarq-loca').remove([photo.arquivo]);
+        locaNotice('Foto removida.',true);await locaLoad();locaRenderPhotoEditor(id);
+      }catch(e){locaNotice('Não foi possível remover a foto. Confira o acesso.');btn.disabled=false;}
+    });
+    item.append(img,btn);target.append(item);
+  }
+}
+function locaResetProduct(){
+  el('locaProductForm').reset();el('locaProductId').value='';el('locaProductFormTitle').textContent='Cadastrar produto';
+  el('locaProductStatus').value='sob_encomenda';el('locaProductOrder').value='0';
+  el('locaProductPrice').value='';el('locaPhotosEditor').hidden=true;
+}
+function locaEditProduct(product){
+  if(!locaCanProducts())return;
+  el('locaProductId').value=product.id;
+  el('locaProductName').value=product.nome;
+  const select=el('locaProductCategory');
+  if(![...select.options].some(o=>o.value===product.categoria)){
+    const option=new Option(product.categoria,product.categoria);select.add(option);
+  }
+  select.value=product.categoria;
+  el('locaProductDescription').value=product.descricao||'';
+  el('locaProductStatus').value=product.status;
+  el('locaProductStock').value=product.estoque===null?'':String(product.estoque);
+  el('locaProductOrder').value=product.ordem??0;
+  el('locaProductPrice').value=product.preco_centavos===null?'':(product.preco_centavos/100).toFixed(2);
+  el('locaProductLink').value=product.link_pedido||'';
+  el('locaProductFeatured').checked=product.destaque;
+  el('locaProductPublished').checked=product.publicado;
+  el('locaProductFiles').value='';
+  el('locaProductFormTitle').textContent=`Editando: ${product.nome}`;
+  locaRenderPhotoEditor(product.id);
+  el('locaProductBox').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function locaRenderProducts(){
+  const host=el('locaProductsList');host.replaceChildren();
+  const term=el('locaSearch').value.trim().toLocaleLowerCase('pt-BR');
+  const filter=el('locaFilter').value;
+  const products=locaProducts.filter(p=>{
+    if(filter==='publicados'&&!p.publicado)return false;
+    if(filter==='rascunhos'&&p.publicado)return false;
+    return (p.nome+' '+p.categoria).toLocaleLowerCase('pt-BR').includes(term);
+  });
+  if(!products.length){host.append(node('p','empty-records','Nenhum produto encontrado. Cadastre o primeiro item da LOCA!'));return;}
+  for(const p of products){
+    const card=node('article','loca-record');
+    const pic=node('div','loca-record-photo');
+    const photo=locaPhotos.find(f=>f.produto_id===p.id);
+    if(photo){const image=node('img');image.src=photo.url;image.alt='Foto de '+p.nome;image.loading='lazy';pic.append(image);}
+    else pic.append(node('span','','▣'));
+    const body=node('div','loca-record-body');
+    const name=node('strong','',p.nome);const meta=node('small','',`${p.categoria} · ${locaStatus[p.status]||p.status} · ${p.publicado?'Publicado':'Rascunho'}`);
+    const price=node('b','loca-record-price',locaMoney(p.preco_centavos));
+    body.append(name,meta,price);
+    const tools=node('div','loca-record-actions');
+    if(locaCanProducts()){
+      tools.append(action('Editar produto',()=>locaEditProduct(p)));
+      const del=action('Excluir',async()=>{
+        if(!confirm(`Excluir definitivamente “${p.nome}” e suas fotos cadastradas?`))return;
+        del.disabled=true;
+        const paths=locaPhotos.filter(f=>f.produto_id===p.id).map(f=>f.arquivo);
+        const {error}=await client.from('caarq_loca_produtos').delete().eq('id',p.id);
+        if(error){locaNotice('Erro ao excluir o produto.');del.disabled=false;return;}
+        if(paths.length)await client.storage.from('caarq-loca').remove(paths);
+        locaResetProduct();locaNotice('Produto excluído.',true);await locaLoad();
+      });del.classList.add('warn');tools.append(del);
+    }
+    if(locaCanPrices()){
+      const inline=node('div','loca-price-inline');
+      const label=node('label','','Preço (R$)');
+      const input=node('input');input.type='number';input.min='0';input.max='1000000';input.step='0.01';
+      input.value=p.preco_centavos===null?'':(p.preco_centavos/100).toFixed(2);
+      input.setAttribute('aria-label','Preço de '+p.nome);
+      const update=action('Salvar preço',async()=>{
+        const cents=input.value.trim()===''?null:Math.round(Number(input.value)*100);
+        if(cents!==null&&(!Number.isInteger(cents)||cents<0||cents>100000000)){
+          locaNotice('Digite um preço válido.');return;
+        }
+        update.disabled=true;
+        const {error}=await client.rpc('caarq_loca_atualizar_preco',{p_produto:p.id,p_centavos:cents});
+        if(error)locaNotice('Não foi possível salvar o preço. Verifique a permissão.');
+        else{locaNotice('Preço salvo!',true);await locaLoad();}
+        update.disabled=false;
+      });
+      inline.append(label,input,update);tools.append(inline);
+    }
+    card.append(pic,body,tools);host.append(card);
+  }
+}
+async function locaLoad(){
+  if(locaLoading)return;
+  locaLoading=true;
+  try{
+    const [p,f,c]=await Promise.all([
+      client.from('caarq_loca_produtos').select('*').order('ordem',{ascending:true}).order('criado_em',{ascending:false}),
+      client.from('caarq_loca_fotos').select('*').order('ordem',{ascending:true}).order('criado_em',{ascending:true}),
+      client.from('caarq_loca_config').select('*').eq('id',1).maybeSingle()
+    ]);
+    if(p.error||f.error||c.error)throw Error();
+    locaProducts=p.data||[];locaPhotos=f.data||[];locaConfig=c.data;
+    if(locaConfig&&locaCanVisual()){
+      el('locaTitle').value=locaConfig.titulo||'';
+      el('locaSubtitle').value=locaConfig.subtitulo||'';
+      el('locaActionTitle').value=locaConfig.texto_botao||'';
+      el('locaOrderLink').value=locaConfig.link_formulario||'';
+      const url=locaConfig.banner_url||'../loca/banner-loca.png';
+      if(url.startsWith('https://')||url.startsWith('/'))el('locaBannerPreview').src=url;
+    }
+    locaRenderProducts();
+  }catch(e){locaNotice('Não foi possível carregar a LOCA. Confira se executou o SQL da versão 15.');}
+  finally{locaLoading=false;}
+}
+el('openLoca').addEventListener('click',async()=>{
+  if(!locaCanAny())return;
+  for(const id of ['membersManager','projectsManager','appearanceManager','profileManager','accessManager','notificationCenter','chatManager','auditManager']){
+    if(el(id))el(id).hidden=true;
+  }
+  el('locaManager').hidden=false;
+  el('locaVisualBox').hidden=!locaCanVisual();
+  el('locaProductBox').hidden=!locaCanProducts();
+  el('locaPriceOnlyBox').hidden=!locaCanPrices()||locaCanProducts();
+  el('locaProductPrice').disabled=!locaCanPrices();
+  await locaLoad();
+  el('locaManager').scrollIntoView({behavior:'smooth',block:'start'});
+});
+el('closeLoca').addEventListener('click',()=>{
+  el('locaManager').hidden=true;el('dashboardView').scrollIntoView({behavior:'smooth',block:'start'});
+});
+for(const id of ['openProfile','openMembers','openProjects','openAppearance','openAccess','openNotifications','openNotificationsTop','openChat','openAudit']){
+  el(id)?.addEventListener('click',()=>{el('locaManager').hidden=true;},{capture:true});
+}
+el('locaSearch').addEventListener('input',locaRenderProducts);
+el('locaFilter').addEventListener('change',locaRenderProducts);
+el('locaProductReset').addEventListener('click',locaResetProduct);
+el('locaProductForm').addEventListener('submit',async(event)=>{
+  event.preventDefault();if(!locaCanProducts())return;
+  const btn=el('locaSaveProduct');btn.disabled=true;locaNotice('');
+  try{
+    const id=el('locaProductId').value||null;
+    const status=el('locaProductStatus').value;
+    const stockInput=el('locaProductStock').value.trim();
+    const link=locaHttpUrl(el('locaProductLink').value);
+    const payload={
+      nome:el('locaProductName').value.trim(),descricao:el('locaProductDescription').value.trim(),
+      categoria:el('locaProductCategory').value,status,
+      estoque:stockInput===''?null:Number(stockInput),ordem:Number(el('locaProductOrder').value||0),
+      publicado:el('locaProductPublished').checked,destaque:el('locaProductFeatured').checked,
+      link_pedido:link,atualizado_em:new Date().toISOString()
+    };
+    if(payload.nome.length<2||payload.nome.length>160)throw Error('Informe um nome válido.');
+    if(payload.estoque!==null&&(!Number.isInteger(payload.estoque)||payload.estoque<0))throw Error('Estoque inválido.');
+    const result=id
+      ? await client.from('caarq_loca_produtos').update(payload).eq('id',id).select('id').single()
+      : await client.from('caarq_loca_produtos').insert(payload).select('id').single();
+    if(result.error)throw Error('Não foi possível salvar os dados do produto. Confira suas permissões.');
+    const productId=result.data.id;
+    let warnings=[];
+    if(locaCanPrices()){
+      const value=el('locaProductPrice').value.trim();
+      const cents=value===''?null:Math.round(Number(value)*100);
+      if(cents===null||(Number.isInteger(cents)&&cents>=0&&cents<=100000000)){
+        const {error:priceError}=await client.rpc('caarq_loca_atualizar_preco',{p_produto:productId,p_centavos:cents});
+        if(priceError)warnings.push('preço não atualizado');
+      } else warnings.push('preço inválido');
+    }
+    const selected=[...el('locaProductFiles').files];
+    if(selected.length>12)throw Error('Selecione até 12 fotos por vez. O produto já foi salvo.');
+    for(const [i,file] of selected.entries()){
+      try{
+        const photo=await locaUpload(file,`produtos/${productId}`);
+        const {error:photoError}=await client.from('caarq_loca_fotos').insert({
+          produto_id:productId,url:photo.url,arquivo:photo.path,ordem:locaPhotos.filter(f=>f.produto_id===productId).length+i
+        });
+        if(photoError){await client.storage.from('caarq-loca').remove([photo.path]);warnings.push('uma foto não foi registrada');}
+      }catch(e){warnings.push('uma foto não foi enviada');}
+    }
+    locaNotice(warnings.length?`Produto salvo, mas houve pendências: ${[...new Set(warnings)].join('; ')}.`:'Produto salvo com sucesso!',!warnings.length);
+    locaResetProduct();await locaLoad();
+  }catch(error){locaNotice(error.message||'Falha ao salvar produto.');}
+  finally{btn.disabled=false;}
+});
+el('locaConfigForm').addEventListener('submit',async event=>{
+  event.preventDefault();if(!locaCanVisual())return;
+  const btn=el('locaSaveConfig');btn.disabled=true;locaNotice('');
+  try{
+    const link=locaHttpUrl(el('locaOrderLink').value);
+    let banner=locaConfig?.banner_url||'/site-caarq/loca/banner-loca.png';
+    const selected=el('locaBannerImage').files[0];
+    if(selected){const uploaded=await locaUpload(selected,'banners');banner=uploaded.url;}
+    const {error}=await client.from('caarq_loca_config').update({
+      titulo:el('locaTitle').value.trim(),subtitulo:el('locaSubtitle').value.trim(),
+      banner_url:banner,link_formulario:link,texto_botao:el('locaActionTitle').value.trim()||'Fazer encomenda',
+      atualizado_em:new Date().toISOString()
+    }).eq('id',1).select('id').single();
+    if(error)throw Error('Não foi possível salvar o banner e as informações.');
+    locaNotice('Aparência da LOCA atualizada! Confira a página pública.',true);
+    el('locaBannerImage').value='';await locaLoad();
+  }catch(error){locaNotice(error.message||'Erro ao salvar a LOCA.');}
+  finally{btn.disabled=false;}
+});
 
 // Iniciar autenticação SOMENTE após declarar todos os editores e eventos.
 try {
