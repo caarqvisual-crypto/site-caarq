@@ -17,10 +17,15 @@ function notice(id, message, success = false) {
   box.classList.toggle('success', success);
   box.hidden = !message;
 }
-const roleNames = { admin: 'Administração geral', editor: 'Editoria', loja: 'Gestão da LOCA' };
+const roleNames = { admin: 'Administração geral', editor: 'Editoria', loja: 'Integrante autorizado' };
 let latestSession = null;
 let isSettingPassword = false;
 let currentRole = null;
+let currentPermissions = {pode_membros:false,pode_projetos:false,pode_aparencia:false,pode_loca:false,trocar_senha:false};
+const canEditMembers = () => currentRole === 'admin' || currentPermissions.pode_membros;
+const canEditProjects = () => currentRole === 'admin' || currentPermissions.pode_projetos;
+const canEditAppearance = () => currentRole === 'admin' || currentPermissions.pode_aparencia;
+
 
 async function checkAccess() {
   if (isSettingPassword) return;
@@ -43,11 +48,28 @@ async function checkAccess() {
     return;
   }
   currentRole = membership.role;
+  const {data:access,error:accessError} = await client.from('caarq_acessos')
+    .select('pode_membros,pode_projetos,pode_aparencia,pode_loca,trocar_senha')
+    .eq('user_id',user.id).maybeSingle();
+  if (accessError || !access) {
+    show('deniedView');
+    el('deniedText').textContent = 'Falta concluir a versão 10 no Supabase. Peça à administração geral para verificar a migração de acessos.';
+    return;
+  }
+  currentPermissions = access;
+  if (access.trocar_senha) {
+    isSettingPassword = true;
+    show('passwordView');
+    el('passwordTitle').textContent = 'Troque sua senha provisória';
+    notice('passwordMessage','Crie uma senha nova com pelo menos 12 caracteres, incluindo letras e números.');
+    return;
+  }
   el('roleTag').textContent = roleNames[membership.role];
-  el('membersTile').hidden = !['admin', 'editor'].includes(currentRole);
-  el('appearanceTile').hidden = currentRole !== 'admin';
-  el('projectsTile').hidden = !['admin', 'editor'].includes(currentRole);
-  if (['admin', 'editor'].includes(currentRole)) await loadData();
+  el('membersTile').hidden = !canEditMembers();
+  el('appearanceTile').hidden = !canEditAppearance();
+  el('projectsTile').hidden = !canEditProjects();
+  el('accessTile').hidden = currentRole !== 'admin';
+  if (canEditMembers()) await loadData();
   el('accountEmail').textContent = user.email || 'Membro autorizado';
   show('dashboardView');
   void loadOwnProfile(user);
@@ -84,19 +106,35 @@ el('loginForm').addEventListener('submit', async event => {
 el('passwordForm').addEventListener('submit', async event => {
   event.preventDefault();
   const password = el('newPassword').value;
-  if (password.length < 8) { notice('passwordMessage','Use uma senha com pelo menos 8 caracteres.'); return; }
+  if (password.length < 12 || !/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+    notice('passwordMessage','Use ao menos 12 caracteres, com letras e números.'); return;
+  }
   el('savePasswordButton').disabled = true;
-  const { error } = await client.auth.updateUser({ password });
-  el('savePasswordButton').disabled = false;
-  if (error) { notice('passwordMessage','Não foi possível salvar a senha. Abra novamente o link do convite ou peça um novo convite.'); return; }
-  notice('passwordMessage','Senha criada. Verificando suas permissões…', true);
-  isSettingPassword = false;
-  history.replaceState(null, '', location.pathname);
-  await checkAccess();
+  try {
+    if (currentPermissions.trocar_senha) {
+      const {data,error} = await client.functions.invoke('caarq-acessos',{
+        body:{action:'change_password',password}
+      });
+      if (error || !data?.ok) throw new Error(data?.error || 'Falha no serviço de troca de senha.');
+    } else {
+      const {error} = await client.auth.updateUser({password});
+      if (error) throw error;
+    }
+    notice('passwordMessage','Senha alterada! Abrindo seu painel…',true);
+    currentPermissions.trocar_senha=false;
+    isSettingPassword=false;
+    history.replaceState(null, '', location.pathname);
+    el('newPassword').value='';
+    await checkAccess();
+  } catch (error) {
+    notice('passwordMessage',error.message||'Não foi possível trocar a senha. Contate a administração geral.');
+  } finally { el('savePasswordButton').disabled=false; }
 });
 
 async function logout() {
   currentRole = null;
+  currentPermissions={pode_membros:false,pode_projetos:false,pode_aparencia:false,pode_loca:false,trocar_senha:false};
+  el('accessManager').hidden = true;
   el('membersManager').hidden = true;
   el('projectsManager').hidden = true;
   el('appearanceManager').hidden = true;
@@ -128,7 +166,7 @@ client.auth.onAuthStateChange((event, session) => {
 let gestoes = [];
 let membros = [];
 let recordsLoaded = false;
-const isEditor = () => currentRole === 'admin' || currentRole === 'editor';
+const isEditor = () => canEditMembers();
 function feedback(message, success=false) {
   notice('memberFeedback', message, success);
 }
@@ -248,7 +286,7 @@ function clearGestao(){el('gestaoForm').reset();el('gestaoId').value='';}
 function clearMembro(){el('membroForm').reset();el('membroId').value='';}
 el('openMembers').addEventListener('click',async()=>{
   if(!isEditor())return;
-  el('membersManager').hidden=false;
+  el('accessManager').hidden=true;el('membersManager').hidden=false;
   el('appearanceManager').hidden=true;
   el('projectsManager').hidden=true;
   el('profileManager').hidden=true;
@@ -331,23 +369,23 @@ function activityRender(){const host=el('activitiesList');host.replaceChildren()
   info.append(node('div','record-sub',[a.tipo==='evento'?'Evento':'Projeto',a.data_inicio?new Date(a.data_inicio+'T12:00:00').toLocaleDateString('pt-BR'):'Data não definida',a.responsaveis||''].filter(Boolean).join(' · ')));
   const tags=node('div','record-tags');tags.append(badge(activityStatusNames[a.situacao]||a.situacao),badge(a.publicado?'Publicado':'Rascunho',a.publicado?'published':''));info.append(tags);
   const actions=node('div','record-actions');actions.append(action('Editar',()=>activityEdit(a)),action(a.publicado?'Ocultar':'Publicar',async()=>{
-    if(!isEditor())return;const {error}=await client.from('caarq_atividades').update({publicado:!a.publicado,atualizado_em:new Date().toISOString()}).eq('id',a.id);
+    if(!canEditProjects())return;const {error}=await client.from('caarq_atividades').update({publicado:!a.publicado,atualizado_em:new Date().toISOString()}).eq('id',a.id);
     if(error)activityFeedback('Não foi possível alterar a publicação.');else{await loadActivities();activityFeedback('Visibilidade atualizada!',true);}
   }));
   const del=action('Excluir',async()=>{
-    if(!isEditor()||!confirm(`Excluir definitivamente “${a.titulo}”? Essa ação não pode ser desfeita.`))return;
+    if(!canEditProjects()||!confirm(`Excluir definitivamente “${a.titulo}”? Essa ação não pode ser desfeita.`))return;
     const {error}=await client.from('caarq_atividades').delete().eq('id',a.id);
     if(error)activityFeedback('Não foi possível excluir a atividade.');else{await loadActivities();activityFeedback('Registro excluído.',true);}
   });del.classList.add('action-danger');actions.append(del);item.append(info,actions);host.append(item);
   }
 }
-async function loadActivities(){if(!isEditor())return;try{const {data,error}=await client.from('caarq_atividades').select('*').order('criado_em',{ascending:false});if(error)throw error;activities=data||[];activitiesLoaded=true;activityRender();}catch(error){console.error('Erro ao carregar atividades',error);activityFeedback('Não foi possível carregar atividades. Confirme se o SQL de projetos foi executado no Supabase.');}}
-el('openProjects').addEventListener('click',async()=>{if(!isEditor())return;el('membersManager').hidden=true;el('appearanceManager').hidden=true;el('profileManager').hidden=true;el('projectsManager').hidden=false;if(!activitiesLoaded)await loadActivities();el('projectsManager').scrollIntoView({behavior:'smooth',block:'start'});});
+async function loadActivities(){if(!canEditProjects())return;try{const {data,error}=await client.from('caarq_atividades').select('*').order('criado_em',{ascending:false});if(error)throw error;activities=data||[];activitiesLoaded=true;activityRender();}catch(error){console.error('Erro ao carregar atividades',error);activityFeedback('Não foi possível carregar atividades. Confirme se o SQL de projetos foi executado no Supabase.');}}
+el('openProjects').addEventListener('click',async()=>{if(!canEditProjects())return;el('membersManager').hidden=true;el('appearanceManager').hidden=true;el('profileManager').hidden=true;el('accessManager').hidden=true;el('projectsManager').hidden=false;if(!activitiesLoaded)await loadActivities();el('projectsManager').scrollIntoView({behavior:'smooth',block:'start'});});
 el('closeProjects').addEventListener('click',()=>{el('projectsManager').hidden=true;el('dashboardView').scrollIntoView({behavior:'smooth',block:'start'});});
 el('clearActivity').addEventListener('click',activityFormClear);
 el('activityFilter').addEventListener('change',activityRender);
 el('projectForm').addEventListener('submit',async event=>{
- event.preventDefault();if(!isEditor())return;activityFeedback('');const from=el('activityStart').value,to=el('activityEnd').value;
+ event.preventDefault();if(!canEditProjects())return;activityFeedback('');const from=el('activityStart').value,to=el('activityEnd').value;
  if(from&&to&&to<from){activityFeedback('A data de término não pode ser anterior ao início.');return;}
  const file=el('activityFile').files?.[0];
  if(file&&(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>5*1024*1024)){activityFeedback('Escolha uma imagem JPEG, PNG ou WebP de até 5 MB.');return;}
@@ -412,7 +450,7 @@ function appearancePreview(){
  el('themePreviewLogo').src=validHttps(logo)?logo:'../logo-caarq.png';
 }
 async function loadAppearance(){
- if(currentRole!=='admin')return;
+ if(!canEditAppearance())return;
  appearanceFeedback('');
  try{
   const {data,error}=await client.from('caarq_aparencia').select('*').eq('id',1).maybeSingle();
@@ -423,8 +461,8 @@ async function loadAppearance(){
  }catch(error){console.error('Configuração de aparência',error);appearanceFeedback('Ainda não foi possível carregar a aparência. Execute o arquivo SQL da versão 6 no Supabase e tente novamente.');}
 }
 el('openAppearance').addEventListener('click',async()=>{
- if(currentRole!=='admin')return;
- el('membersManager').hidden=true;el('projectsManager').hidden=true;el('profileManager').hidden=true;el('appearanceManager').hidden=false;
+ if(!canEditAppearance())return;
+ el('membersManager').hidden=true;el('projectsManager').hidden=true;el('profileManager').hidden=true;el('accessManager').hidden=true;el('appearanceManager').hidden=false;
  await loadAppearance();
  el('appearanceManager').scrollIntoView({behavior:'smooth',block:'start'});
 });
@@ -452,7 +490,7 @@ async function saveAppearanceData(changes,uploadedFiles){
  finally{b.disabled=false;b.textContent='Publicar aparência ↗';}
 }
 el('appearanceForm').addEventListener('submit',async e=>{
- e.preventDefault();if(currentRole!=='admin'||!appearanceLoaded)return;
+ e.preventDefault();if(!canEditAppearance()||!appearanceLoaded)return;
  appearanceFeedback('');
  const color=el('themePrimary').value,accent=el('themeAccent').value;
  if(!validHex(color)||!validHex(accent)||contrast(color,'#ffffff')<4.5||contrast(accent,color)<3){appearanceFeedback('Escolha um tom principal escuro o suficiente para texto branco e uma cor de destaque com contraste. Tente uma das combinações prontas.');return;}
@@ -469,7 +507,7 @@ el('appearanceForm').addEventListener('submit',async e=>{
  await saveAppearanceData(changes,files);
 });
 el('resetAppearance').addEventListener('click',async()=>{
- if(currentRole!=='admin'||!appearanceLoaded||!confirm('Restaurar todas as cores, textos e imagens padrão do CAARQ?'))return;
+ if(!canEditAppearance()||!appearanceLoaded||!confirm('Restaurar todas as cores, textos e imagens padrão do CAARQ?'))return;
  await saveAppearanceData({...appearanceDefaults},null);
 });
 
@@ -549,7 +587,7 @@ async function loadOwnProfile(user){
 el('openProfile').addEventListener('click',async()=>{
  if(!currentRole)return;
  el('membersManager').hidden=true;el('projectsManager').hidden=true;el('appearanceManager').hidden=true;
- el('profileManager').hidden=false;
+ el('accessManager').hidden=true;el('profileManager').hidden=false;
  await loadOwnProfile();
  el('profileManager').scrollIntoView({behavior:'smooth',block:'start'});
 });
@@ -626,6 +664,163 @@ el('profileForm').addEventListener('submit',async e=>{
   el('saveProfile').disabled=false;
   el('saveProfile').textContent='Salvar meu perfil ↗';
  }
+});
+
+
+// V10 · Contas e permissões: a chave secreta nunca é enviada ao navegador.
+const accessRoles = {
+  pode_membros: 'Integrantes e gestões',
+  pode_projetos: 'Projetos e calendário',
+  pode_aparencia: 'Aparência do site',
+  pode_loca: 'Loja LOCA (em construção)',
+};
+const accessFields = Object.keys(accessRoles);
+let accessLoading = false;
+let accessPass = '';
+function accessMsg(message,success=false){ notice('accessFeedback',message,success); }
+function hideTempPassword(){
+  accessPass='';el('temporaryPasswordValue').textContent='';el('temporaryPasswordBox').hidden=true;
+}
+function showTempPassword(password){
+  hideTempPassword();accessPass=password;
+  el('temporaryPasswordValue').textContent=password;
+  el('temporaryPasswordBox').hidden=false;
+  el('temporaryPasswordBox').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function userPermsFromForm(prefix){
+  if(prefix==='new')return {
+    pode_membros:el('newPermMembers').checked,
+    pode_projetos:el('newPermProjects').checked,
+    pode_aparencia:el('newPermAppearance').checked,
+    pode_loca:el('newPermLoca').checked,
+  };
+  return accessFields.reduce((acc,key)=>({...acc,[key]:el(prefix+'-'+key)?.checked===true}),{});
+}
+async function callAccess(body){
+  const {data,error} = await client.functions.invoke('caarq-acessos',{body});
+  if (error || data?.error) {
+    let detail=data?.error;
+    if (!detail && error?.context?.json) {
+      try { detail=(await error.context.json())?.error; } catch {}
+    }
+    throw new Error(detail||'Serviço indisponível. Confira se a função caarq-acessos foi implantada no Supabase.');
+  }
+  return data;
+}
+async function loadAccounts(){
+  if(currentRole!=='admin'||accessLoading)return;
+  accessLoading=true;accessMsg('');
+  el('accessList').replaceChildren(node('p','empty-records','Carregando contas…'));
+  try{
+    const result=await callAccess({action:'list'});
+    renderAccounts(result.users||[]);
+  }catch(error){
+    accessMsg(error.message);
+    el('accessList').replaceChildren(node('p','empty-records','Não foi possível carregar as contas.'));
+  }finally{accessLoading=false;}
+}
+function renderAccounts(users){
+  const container=el('accessList');container.replaceChildren();
+  if(!users.length){container.append(node('p','empty-records','Nenhuma conta cadastrada.'));return;}
+  for(const user of users){
+    const card=node('article','access-record');
+    const head=node('div','access-record-top');
+    const person=node('div','access-person');
+    const avatar=node('div','access-person-icon',(user.nome||'?').charAt(0).toUpperCase());
+    const desc=node('div');
+    desc.append(node('strong','',user.nome||'Membro'),node('small','',user.email||'E-mail não disponível'));
+    person.append(avatar,desc);
+    const status=node('span','access-state '+(user.role==='admin'?'admin':user.active?'':'inactive'),
+      user.role==='admin'?'Administração geral':user.active?'Ativo':'Acesso suspenso');
+    head.append(person,status);card.append(head);
+    if(user.role==='admin'){
+      card.append(node('p','bottom-note','A conta da Administração Geral é protegida e não pode ser alterada aqui.'));
+      container.append(card);continue;
+    }
+    const nameLabel=node('label','','Nome no cadastro');
+    const nameInput=node('input');nameInput.value=user.nome||'';nameInput.maxLength=120;nameInput.minLength=2;
+    card.append(nameLabel,nameInput);
+    const group=node('fieldset','permissions-set');
+    group.append(node('legend','','O que pode editar'));
+    const flags={};
+    for(const [key,title] of Object.entries(accessRoles)){
+      const row=node('label');const checkbox=document.createElement('input');checkbox.type='checkbox';
+      checkbox.checked=user[key]===true;flags[key]=checkbox;
+      row.append(checkbox,document.createTextNode(title));group.append(row);
+    }
+    card.append(group);
+    const actions=node('div','access-row');
+    const save=action('Salvar permissões',async()=>{
+      save.disabled=true;accessMsg('');
+      try{
+        const name=nameInput.value.trim();
+        await callAccess({action:'update',user_id:user.user_id,name,active:user.active,
+          permissions:Object.fromEntries(accessFields.map(k=>[k,flags[k].checked]))});
+        accessMsg(`Permissões de ${name} atualizadas!`,true);
+        await loadAccounts();
+      }catch(error){accessMsg(error.message);}
+      finally{save.disabled=false;}
+    });save.className='primary';
+    const toggle=action(user.active?'Suspender acesso':'Reativar acesso',async()=>{
+      if(!confirm(`${user.active?'Suspender':'Reativar'} o acesso de ${user.nome}?`))return;
+      toggle.disabled=true;
+      try{
+        await callAccess({action:'update',user_id:user.user_id,name:nameInput.value.trim(),active:!user.active,
+          permissions:Object.fromEntries(accessFields.map(k=>[k,flags[k].checked]))});
+        accessMsg('Situação do acesso atualizada!',true);await loadAccounts();
+      }catch(error){accessMsg(error.message);}
+      finally{toggle.disabled=false;}
+    });if(user.active)toggle.className='warn';
+    const reset=action('Nova senha provisória',async()=>{
+      if(!confirm(`Gerar uma nova senha provisória para ${user.nome}? A senha anterior deixará de funcionar.`))return;
+      reset.disabled=true;hideTempPassword();
+      try{
+        const result=await callAccess({action:'reset',user_id:user.user_id});
+        if(!result?.provisional_password)throw new Error('A senha não foi devolvida pelo serviço.');
+        showTempPassword(result.provisional_password);
+        accessMsg(`Nova senha de ${user.nome} gerada. Copie e entregue de forma privada.`,true);
+        await loadAccounts();
+      }catch(error){accessMsg(error.message);}
+      finally{reset.disabled=false;}
+    });
+    actions.append(save,toggle,reset);card.append(actions);
+    container.append(card);
+  }
+}
+el('openAccess').addEventListener('click',async()=>{
+  if(currentRole!=='admin')return;
+  el('membersManager').hidden=true;el('projectsManager').hidden=true;
+  el('appearanceManager').hidden=true;el('profileManager').hidden=true;
+  el('accessManager').hidden=false;
+  await loadAccounts();
+  el('accessManager').scrollIntoView({behavior:'smooth',block:'start'});
+});
+el('closeAccess').addEventListener('click',()=>{
+  el('accessManager').hidden=true;hideTempPassword();
+  el('dashboardView').scrollIntoView({behavior:'smooth',block:'start'});
+});
+el('refreshAccess').addEventListener('click',loadAccounts);
+el('copyTemporaryPassword').addEventListener('click',async()=>{
+  if(!accessPass)return;
+  try{await navigator.clipboard.writeText(accessPass);accessMsg('Senha copiada. Entregue somente ao titular da conta.',true);}
+  catch{accessMsg('Não foi possível copiar automaticamente. Selecione e copie a senha exibida.');}
+});
+el('dismissTemporaryPassword').addEventListener('click',hideTempPassword);
+el('accessCreateForm').addEventListener('submit',async e=>{
+  e.preventDefault();if(currentRole!=='admin')return;
+  const name=el('accessNewName').value.trim();const email=el('accessNewEmail').value.trim();
+  if(name.length<2||!el('accessNewEmail').checkValidity()){accessMsg('Informe o nome e e-mail válidos.');return;}
+  if(!confirm(`Criar uma conta para ${name} (${email})? Confira se o endereço pertence à pessoa correta.`))return;
+  const button=el('createAccessButton');button.disabled=true;hideTempPassword();accessMsg('');
+  try{
+    const result=await callAccess({action:'create',name,email,permissions:userPermsFromForm('new')});
+    if(!result?.provisional_password)throw new Error('A conta foi criada, mas a senha não foi retornada. Consulte a lista antes de tentar novamente.');
+    showTempPassword(result.provisional_password);
+    accessMsg('Conta criada! Entregue a senha provisória diretamente à pessoa. Ela deverá trocá-la no primeiro acesso.',true);
+    el('accessCreateForm').reset();
+    await loadAccounts();
+  }catch(error){accessMsg(error.message);}
+  finally{button.disabled=false;}
 });
 
 // Iniciar autenticação SOMENTE após declarar todos os editores e eventos.

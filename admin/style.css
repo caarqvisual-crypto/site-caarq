@@ -114,3 +114,23 @@ body{overflow-x:hidden}
 .profile-role-pill{display:inline-flex;background:#e9d9f1;color:var(--purple);border-radius:30px;padding:6px 10px;font-size:10px;font-weight:800}
 .profile-manager .edit-form input[type=file]{padding:10px;min-height:52px}
 @media(max-width:540px){.profile-preview{flex-direction:column;text-align:center;padding:20px;gap:12px}.profile-avatar{width:94px;height:94px}.account-identity{align-items:flex-start}.account-avatar{width:44px;height:44px}}
+
+/* V10 · Gerenciamento de contas */
+.permissions-set{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;border:1px solid var(--border);background:#fbf7fd;border-radius:12px;padding:20px;margin:10px 0 24px}
+.permissions-set legend{color:var(--purple);font-size:13px;font-weight:800;padding:0 7px}
+.permissions-set label{display:flex;align-items:center;gap:9px;margin:0;font-weight:700;font-size:12px;line-height:1.5;cursor:pointer}
+.permissions-set small{font-size:10px;color:var(--muted)}
+.permissions-set input[type="checkbox"]{width:18px;height:18px;min-height:auto;padding:0;margin:0;flex-shrink:0;accent-color:var(--purple)}
+.temporary-box{border:1px solid #b5d5c0;background:#f2fff6;border-radius:12px;padding:22px;margin-top:25px;color:#174d29}
+.temporary-box p{font-size:12px;line-height:1.7}.temporary-box code{display:block;background:white;padding:15px;border:1px dashed #9cc6a9;border-radius:7px;overflow-wrap:anywhere;font-size:16px;font-weight:800;letter-spacing:.04em;margin:15px 0}
+.access-list{display:grid;gap:14px;margin-top:20px}
+.access-record{border:1px solid var(--border);background:white;border-radius:11px;padding:19px;min-width:0}
+.access-record-top{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:14px}
+.access-person{display:flex;align-items:center;gap:12px;min-width:0}
+.access-person-icon{display:grid;place-content:center;height:44px;width:44px;border-radius:50%;background:#f1e7f5;color:var(--purple);font-weight:900;flex-shrink:0}
+.access-person strong{display:block;line-height:1.4;color:var(--purple);font-size:14px;overflow-wrap:anywhere}.access-person small{display:block;font-size:11px;color:var(--muted);overflow-wrap:anywhere}
+.access-state{border-radius:50px;padding:6px 10px;font-size:10px;font-weight:800;background:#eef8ed;color:#24603a;white-space:nowrap}.access-state.inactive{background:#fff0ee;color:#9c3d30}.access-state.admin{background:#f4e7fa;color:#6c3f80}
+.access-record .permissions-set{margin:5px 0 12px}
+.access-row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.access-row button{font-size:11px;font-weight:800;padding:11px 13px;border:1px solid var(--border);border-radius:5px;background:white;color:var(--purple);cursor:pointer}.access-row button.primary{background:var(--purple);color:white}.access-row button.warn{color:#a23f2e;border-color:#f0cbc5}
+.access-row button:disabled{opacity:.5;cursor:wait}
+@media(max-width:650px){.permissions-set{grid-template-columns:1fr}.access-record-top{flex-direction:column;align-items:flex-start}.access-row{align-items:stretch}.access-row button{flex:1}}
