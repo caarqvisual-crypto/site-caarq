@@ -27,9 +27,32 @@ async function loadHomeProjects(){const host=document.getElementById('homeProjec
 void Promise.all([loadHomeTeam(),loadHomeProjects()]);
 
 
-// V6 — aparência do site atualizada por Administradores Gerais.
+
+function applyV17Palette(cfg){
+ const root=document.documentElement;
+ const color=(key,backup)=>/^#[0-9a-f]{6}$/i.test(cfg[key]||'')?cfg[key]:backup;
+ root.style.setProperty('--paper',color('background_color','#fffdf9'));
+ root.style.setProperty('--cream',color('background_color','#fffdf9'));
+ root.style.setProperty('--site-surface',color('surface_color','#ffffff'));
+ root.style.setProperty('--ink',color('text_color','#281d2e'));
+ root.style.setProperty('--site-ink',color('text_color','#281d2e'));
+ const fonts=['Montserrat','Arial','Georgia','Verdana','Trebuchet MS'];
+ const font=fonts.includes(cfg.font_family)?cfg.font_family:'Montserrat';
+ root.style.setProperty('--font',`"${font}",Arial,sans-serif`);
+ document.body.style.fontFamily=`"${font}",Arial,sans-serif`;
+ const radius=[0,8,16,24].includes(Number(cfg.corner_radius))?Number(cfg.corner_radius):8;
+ root.style.setProperty('--site-radius',radius+'px');
+ let css=document.getElementById('caarq-v17-appearance');
+ if(!css){css=document.createElement('style');css.id='caarq-v17-appearance';document.head.append(css);}
+ css.textContent=`body{color:var(--site-ink,var(--ink))!important;background:var(--paper)!important}
+ .portal-card,.about-card,.document-card,.feature-card,.info-card,.person-card,.history-card,.project-card,.event-card{background:var(--site-surface)!important;border-radius:var(--site-radius)!important}
+ .portal-card p,.portal-card small,.person-bio{color:var(--site-ink)!important}
+ .portal-card,.person-card,.history-card{border-radius:var(--site-radius)!important}`;
+}
+
+// V6 — aparência do site atualizada por editores autorizados.
 // A tabela é pública apenas para leitura; gravações são protegidas pela RLS do Supabase.
-const defaultAppearance={primary_color:'#40194f',accent_color:'#ffd02f',hero_kicker:'Memória · Acesso · Participação',hero_first:'Guardar memórias.',hero_highlight:'Transformar',hero_last:'futuros.',hero_description:'Somos o Centro Acadêmico de Arquivologia da UEPB, Campus V. Um espaço de representação estudantil, diálogo e construção coletiva.',logo_url:null,banner_url:null};
+const defaultAppearance={primary_color:'#40194f',accent_color:'#ffd02f',background_color:'#fffdf9',surface_color:'#ffffff',text_color:'#281d2e',font_family:'Montserrat',corner_radius:8,hero_kicker:'Memória · Acesso · Participação',hero_first:'Guardar memórias.',hero_highlight:'Transformar',hero_last:'futuros.',hero_description:'Somos o Centro Acadêmico de Arquivologia da UEPB, Campus V. Um espaço de representação estudantil, diálogo e construção coletiva.',logo_url:null,banner_url:null};
 const hexColor=(value,fallback)=>/^#[0-9a-fA-F]{6}$/.test(value||'')?value:fallback;
 function deriveDark(hex,amount){const parts=[1,3,5].map(n=>parseInt(hex.slice(n,n+2),16));return '#'+parts.map(n=>Math.round(n*amount).toString(16).padStart(2,'0')).join('');}
 function safeAppearanceImage(value){try{const u=new URL(value);return u.protocol==='https:'?u.href:null;}catch{return null;}}
@@ -41,6 +64,7 @@ function applyHomeAppearance(data){
  root.style.setProperty('--purple-dark',deriveDark(primary,.68));
  root.style.setProperty('--purple-mid',deriveDark(primary,1.25));
  root.style.setProperty('--yellow',accent);
+ applyV17Palette(cfg);
  const textIds={homeKicker:'hero_kicker',homeTitleFirst:'hero_first',homeTitleAccent:'hero_highlight',homeTitleLast:'hero_last',homeDescription:'hero_description'};
  for(const [id,key] of Object.entries(textIds)){
    const el=document.getElementById(id);
@@ -55,7 +79,7 @@ function applyHomeAppearance(data){
 }
 async function loadPublicAppearance(){
  try{
-  const {data,error}=await publicDB.from('caarq_aparencia').select('primary_color,accent_color,hero_kicker,hero_first,hero_highlight,hero_last,hero_description,logo_url,banner_url').eq('id',1).maybeSingle();
+  const {data,error}=await publicDB.from('caarq_aparencia').select('primary_color,accent_color,background_color,surface_color,text_color,font_family,corner_radius,hero_kicker,hero_first,hero_highlight,hero_last,hero_description,logo_url,banner_url').eq('id',1).maybeSingle();
   if(error)throw error;
   if(data)applyHomeAppearance(data);
  }catch(error){console.info('Aparência padrão mantida; configuração indisponível.');}
