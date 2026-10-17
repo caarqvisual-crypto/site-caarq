@@ -21,7 +21,7 @@ const roleNames = { admin: 'Administração geral', editor: 'Editoria', loja: 'I
 let latestSession = null;
 let isSettingPassword = false;
 let currentRole = null;
-let currentPermissions = {pode_membros:false,pode_projetos:false,pode_aparencia:false,pode_loca:false,pode_loca_precos:false,pode_loca_visual:false,pode_criar_grupos:false,trocar_senha:false};
+let currentPermissions = {pode_membros:false,pode_projetos:false,pode_aparencia:false,pode_loca:false,pode_loca_precos:false,pode_loca_visual:false,pode_criar_grupos:false,pode_noticias:false,trocar_senha:false};
 const canEditMembers = () => currentRole === 'admin' || currentPermissions.pode_membros;
 const canEditProjects = () => currentRole === 'admin' || currentPermissions.pode_projetos;
 const canEditAppearance = () => currentRole === 'admin' || currentPermissions.pode_aparencia;
@@ -49,7 +49,7 @@ async function checkAccess() {
   }
   currentRole = membership.role;
   const {data:access,error:accessError} = await client.from('caarq_acessos')
-    .select('pode_membros,pode_projetos,pode_aparencia,pode_loca,pode_loca_precos,pode_loca_visual,pode_criar_grupos,trocar_senha')
+    .select('pode_membros,pode_projetos,pode_aparencia,pode_loca,pode_loca_precos,pode_loca_visual,pode_criar_grupos,pode_noticias,trocar_senha')
     .eq('user_id',user.id).maybeSingle();
   if (accessError || !access) {
     show('deniedView');
@@ -69,6 +69,7 @@ async function checkAccess() {
   el('appearanceTile').hidden = !canEditAppearance();
   el('projectsTile').hidden = !canEditProjects();
   el('locaTile').hidden = !(currentRole === 'admin' || access.pode_loca || access.pode_loca_precos || access.pode_loca_visual);
+  el('newsTile').hidden = !(currentRole === 'admin' || access.pode_noticias === true);
   el('accessTile').hidden = currentRole !== 'admin';
   el('auditTile').hidden = currentRole !== 'admin';
   if (canEditMembers()) await loadData();
@@ -137,7 +138,7 @@ el('passwordForm').addEventListener('submit', async event => {
 async function logout() {
   await chatDeactivate();
   currentRole = null;
-  currentPermissions={pode_membros:false,pode_projetos:false,pode_aparencia:false,pode_loca:false,pode_loca_precos:false,pode_loca_visual:false,pode_criar_grupos:false,trocar_senha:false};
+  currentPermissions={pode_membros:false,pode_projetos:false,pode_aparencia:false,pode_loca:false,pode_loca_precos:false,pode_loca_visual:false,pode_criar_grupos:false,pode_noticias:false,trocar_senha:false};
   el('accessManager').hidden = true;
   el('membersManager').hidden = true;
   el('projectsManager').hidden = true;
@@ -819,6 +820,7 @@ const accessRoles = {
   pode_loca_precos: 'LOCA — alterar preços',
   pode_loca_visual: 'LOCA — banner e apresentação',
   pode_criar_grupos: 'Pode criar grupos no chat',
+  pode_noticias: 'Novidades e Memórias — escrever, editar e publicar',
 };
 const accessFields = Object.keys(accessRoles);
 let accessLoading = false;
@@ -842,6 +844,7 @@ function userPermsFromForm(prefix){
     pode_loca_precos:el('newPermLocaPrice').checked,
     pode_loca_visual:el('newPermLocaVisual').checked,
     pode_criar_grupos:el('newPermGroups').checked,
+    pode_noticias:el('newPermNews').checked,
   };
   return accessFields.reduce((acc,key)=>({...acc,[key]:el(prefix+'-'+key)?.checked===true}),{});
 }
@@ -1996,6 +1999,99 @@ el('locaConfigForm').addEventListener('submit',async event=>{
   finally{btn.disabled=false;}
 });
 
+
+// CAARQ V18 · Blog institucional. Todas as alterações são autorizadas no Postgres (RLS).
+let newsItems=[];
+let newsPhotos=[];
+let newsBusy=false;
+const canEditNews=()=>currentRole==='admin'||currentPermissions.pode_noticias===true;
+const newsMsg=(message,success=false)=>notice('newsFeedback',message,success);
+const newsValidUrl=value=>{const txt=String(value||'').trim();if(!txt)return null;try{const u=new URL(txt);if(u.protocol!=='https:')throw Error();return u.href;}catch{throw Error('Use um endereço HTTPS válido no link ou na imagem.');}};
+function newsLocalInput(iso){const d=iso?new Date(iso):new Date();if(Number.isNaN(+d))return '';const local=new Date(d.getTime()-d.getTimezoneOffset()*60000);return local.toISOString().slice(0,16);}
+function newsStatus(item){if(!item.publicado)return {label:'Rascunho',cls:''};if(new Date(item.publicado_em)>new Date())return {label:'Agendada',cls:'scheduled'};return {label:'Publicada',cls:'live'};}
+async function newsLoad(){if(!canEditNews())return;newsMsg('');
+  const {data,error}=await client.from('caarq_noticias').select('*').order('criado_em',{ascending:false}).limit(500);
+  if(error){newsMsg('Não foi possível carregar notícias. Confira se executou o SQL da V18 e se sua conta tem permissão.');return;}
+  newsItems=data||[];newsRender();
+}
+function newsReset(){el('newsForm').reset();el('newsId').value='';el('newsAuthor').value='CAARQ';el('newsDate').value=newsLocalInput();el('newsEditorTitle').textContent='Nova publicação';el('newsCurrentCover').hidden=true;el('newsGalleryEditor').hidden=true;newsPhotos=[];el('newsPhotoList').replaceChildren();}
+function newsRender(){const container=el('newsList');container.replaceChildren();const filter=el('newsFilter').value;const search=el('newsFind').value.toLocaleLowerCase('pt-BR').trim();
+  const filtered=newsItems.filter(p=>{const s=newsStatus(p);return (filter==='todos'||(filter==='publicados'&&s.cls==='live')||(filter==='rascunhos'&&!p.publicado)||(filter==='agendados'&&s.cls==='scheduled'))&&(!search||[p.titulo,p.autor,p.categoria,p.resumo].join(' ').toLocaleLowerCase('pt-BR').includes(search));});
+  if(!filtered.length){container.append(node('p','empty-records','Nenhuma publicação nessa seleção. Você pode criar uma nova matéria acima.'));return;}
+  for(const p of filtered){const record=node('article','record news-record');const copy=node('div','record-detail');copy.append(node('strong','record-title',p.titulo),node('div','record-sub',`${p.categoria} · ${p.autor||'CAARQ'} · ${new Date(p.publicado_em).toLocaleDateString('pt-BR')}`));const tags=node('div','record-tags'),status=newsStatus(p);tags.append(node('span','news-record-status '+status.cls,status.label));if(p.destaque)tags.append(node('span','record-tag current','Destaque'));copy.append(tags);const tools=node('div','record-actions');
+   tools.append(action('Editar',()=>{void newsEdit(p.id);}));
+   if(status.cls==='live'){const link=action('Abrir ↗',()=>window.open(`../novidades/?post=${encodeURIComponent(p.id)}`,'_blank','noopener,noreferrer'));tools.append(link);}
+   const toggle=action(p.publicado?'Retirar do ar':'Publicar',async()=>{if(newsBusy)return;newsBusy=true;toggle.disabled=true;
+     try{const {error}=await client.from('caarq_noticias').update({publicado:!p.publicado,atualizado_em:new Date().toISOString()}).eq('id',p.id);if(error)throw error;newsMsg('Visibilidade atualizada!',true);await newsLoad();}catch(error){newsMsg('Erro ao atualizar a publicação: '+(error.message||'verifique o acesso.'));}finally{newsBusy=false;toggle.disabled=false;}});tools.append(toggle);
+   const remove=action('Excluir',async()=>{if(newsBusy||!confirm(`Excluir DEFINITIVAMENTE a publicação “${p.titulo}”? O texto e a galeria serão removidos do banco. Essa ação não pode ser desfeita.`))return;newsBusy=true;remove.disabled=true;
+     try{const {error}=await client.from('caarq_noticias').delete().eq('id',p.id);if(error)throw error;newsReset();await newsLoad();newsMsg('Publicação excluída. Imagens já enviadas podem permanecer no armazenamento.',true);}catch(error){newsMsg('Não foi possível excluir: '+(error.message||'sem permissão.'));}finally{newsBusy=false;remove.disabled=false;}});remove.className='action-danger';tools.append(remove);
+   record.append(copy,tools);container.append(record);
+  }
+}
+async function newsEdit(id){if(!canEditNews())return;const p=newsItems.find(x=>x.id===id);if(!p)return;newsMsg('');
+  el('newsId').value=p.id;el('newsTitle').value=p.titulo;el('newsCategory').value=p.categoria;el('newsAuthor').value=p.autor||'CAARQ';el('newsSummary').value=p.resumo||'';el('newsContent').value=p.conteudo||'';el('newsDate').value=newsLocalInput(p.publicado_em);el('newsLink').value=p.link_externo||'';el('newsLinkLabel').value=p.link_rotulo||'Saiba mais';el('newsCoverUrl').value=p.capa_url||'';el('newsCoverAlt').value=p.capa_alt||'';el('newsPublished').checked=!!p.publicado;el('newsFeatured').checked=!!p.destaque;el('newsCoverFile').value='';el('newsGalleryFiles').value='';el('newsEditorTitle').textContent='Editar publicação';
+  const safe=p.capa_url?.startsWith('https://')?p.capa_url:null;el('newsCurrentCover').hidden=!safe;if(safe)el('newsCoverPreview').src=safe;
+  await newsLoadPhotos(p.id);el('newsForm').scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function newsLoadPhotos(id){const {data,error}=await client.from('caarq_noticias_fotos').select('*').eq('noticia_id',id).order('ordem',{ascending:true});if(error){newsMsg('Não foi possível ler a galeria da publicação.');return;}newsPhotos=data||[];newsRenderPhotos();}
+function newsRenderPhotos(){const host=el('newsPhotoList');host.replaceChildren();el('newsGalleryEditor').hidden=!el('newsId').value;const current=newsItems.find(p=>p.id===el('newsId').value);
+ if(!newsPhotos.length){host.append(node('p','empty-records','Ainda não há fotos na galeria. Use o campo acima para adicioná-las e salve.'));return;}
+ for(const photo of newsPhotos){const row=node('div','news-photo-item');const img=node('img');img.src=photo.url;img.alt=photo.legenda||'Imagem da matéria';const details=node('div','news-photo-meta');const label=node('label','','Legenda da foto');const input=node('input');input.type='text';input.maxLength=220;input.value=photo.legenda||'';const tools=node('div','news-photo-actions');const edit=action('Salvar legenda',async()=>{edit.disabled=true;const {error}=await client.from('caarq_noticias_fotos').update({legenda:input.value.trim()}).eq('id',photo.id);if(error)newsMsg('Não foi possível atualizar legenda.');else{photo.legenda=input.value.trim();newsMsg('Legenda atualizada.',true);}edit.disabled=false;});tools.append(edit);
+ const cover=action('Usar como capa',async()=>{cover.disabled=true;const {error}=await client.from('caarq_noticias').update({capa_url:photo.url,capa_alt:input.value.trim(),atualizado_em:new Date().toISOString()}).eq('id',photo.noticia_id);if(error)newsMsg('Não foi possível definir a capa.');else{el('newsCoverUrl').value=photo.url;el('newsCoverAlt').value=input.value.trim();el('newsCoverPreview').src=photo.url;el('newsCurrentCover').hidden=false;const item=newsItems.find(p=>p.id===photo.noticia_id);if(item){item.capa_url=photo.url;item.capa_alt=input.value.trim();}newsMsg('Capa atualizada.',true);}cover.disabled=false;});tools.append(cover);
+ const del=action('Remover',async()=>{if(!confirm('Remover esta foto da galeria?'))return;del.disabled=true;const {error}=await client.from('caarq_noticias_fotos').delete().eq('id',photo.id);if(error)newsMsg('Não foi possível remover a foto.');else{newsPhotos=newsPhotos.filter(p=>p.id!==photo.id);newsRenderPhotos();newsMsg('Foto removida da galeria.',true);}});del.className='danger';tools.append(del);
+ details.append(label,input,tools);row.append(img,details);host.append(row);
+ }
+}
+async function newsUpload(file){const types={'image/jpeg':'jpg','image/png':'png','image/webp':'webp'};const ext=types[file.type];if(!ext||file.size<=0||file.size>5*1024*1024)throw Error('Use JPG, PNG ou WebP, com até 5 MB por imagem.');
+ const path=`novidades/${crypto.randomUUID()}.${ext}`;const {error}=await client.storage.from('caarq-imagens').upload(path,file,{contentType:file.type,cacheControl:'3600',upsert:false});if(error)throw Error('Falha ao enviar fotografia. Confira as permissões de armazenamento.');const {data}=client.storage.from('caarq-imagens').getPublicUrl(path);return {url:data.publicUrl,path};}
+
+
+async function newsLoadConfig(){const {data,error}=await client.from('caarq_noticias_config').select('*').eq('id',1).maybeSingle();
+ if(error||!data){newsMsg('Não foi possível carregar a apresentação do blog.');return;}
+ el('newsKicker').value=data.kicker||'';el('newsHeroTitle').value=data.titulo||'';el('newsHeroAccent').value=data.destaque||'';el('newsHeroDescription').value=data.descricao||'';el('newsHeroUrl').value=data.fundo_url||'';
+}
+el('newsConfigForm').addEventListener('submit',async(event)=>{event.preventDefault();if(!canEditNews())return;const btn=el('newsSaveConfig');btn.disabled=true;newsMsg('');
+ try{let bg=newsValidUrl(el('newsHeroUrl').value);const file=el('newsHeroFile').files[0];if(file){const uploaded=await newsUpload(file);bg=uploaded.url;}
+ const payload={kicker:el('newsKicker').value.trim(),titulo:el('newsHeroTitle').value.trim(),destaque:el('newsHeroAccent').value.trim(),descricao:el('newsHeroDescription').value.trim(),fundo_url:bg,atualizado_em:new Date().toISOString()};
+ if(!payload.kicker||!payload.titulo||!payload.destaque||!payload.descricao)throw Error('Preencha os textos principais do blog.');
+ const {error}=await client.from('caarq_noticias_config').update(payload).eq('id',1).select('id').single();if(error)throw Error('Não foi possível salvar a apresentação. Confira as permissões da V18.');
+ el('newsHeroFile').value='';await newsLoadConfig();newsMsg('Apresentação do blog atualizada! Confira a página pública.',true);
+ }catch(error){newsMsg(error.message||'Não foi possível personalizar o blog.');}finally{btn.disabled=false;}
+});
+el('openNews').addEventListener('click',async()=>{if(!canEditNews())return;
+ for(const id of ['membersManager','projectsManager','appearanceManager','profileManager','accessManager','notificationCenter','chatManager','auditManager','locaManager'])if(el(id))el(id).hidden=true;
+ el('newsManager').hidden=false;newsReset();await Promise.all([newsLoad(),newsLoadConfig()]);el('newsManager').scrollIntoView({behavior:'smooth',block:'start'});
+});
+el('closeNews').addEventListener('click',()=>{el('newsManager').hidden=true;el('dashboardView').scrollIntoView({behavior:'smooth',block:'start'});});
+el('newsReset').addEventListener('click',newsReset);
+el('newsFind').addEventListener('input',newsRender);
+el('newsFilter').addEventListener('change',newsRender);
+el('newsForm').addEventListener('submit',async(event)=>{event.preventDefault();if(!canEditNews()||newsBusy)return;newsBusy=true;const button=el('newsSave');button.disabled=true;newsMsg('');
+ let savedId=null;
+ try{
+  const title=el('newsTitle').value.trim(),resumo=el('newsSummary').value.trim(),body=el('newsContent').value.trim(),category=el('newsCategory').value.trim(),date=el('newsDate').value;
+  if(title.length<5||title.length>180||resumo.length<10||body.length<10||category.length<2)throw Error('Preencha título, categoria, resumo (10 caracteres) e texto completo (10 caracteres).');
+  if(!date)throw Error('Informe a data de publicação.');const d=new Date(date);if(Number.isNaN(+d))throw Error('Data inválida.');
+  let link=newsValidUrl(el('newsLink').value);let cover=newsValidUrl(el('newsCoverUrl').value);
+  const galleries=[...el('newsGalleryFiles').files];const coverFile=el('newsCoverFile').files[0];
+  if(galleries.length>8||galleries.length+newsPhotos.length>8)throw Error('Use até oito fotos na galeria. Remova fotos antigas antes de adicionar mais.');
+  for(const file of [...galleries,...(coverFile?[coverFile]:[])]){if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>5*1024*1024||file.size===0)throw Error('Cada imagem deve ser JPG, PNG ou WebP e ter até 5 MB.');}
+  const payload={titulo:title,categoria:category,resumo,conteudo:body,autor:el('newsAuthor').value.trim()||'CAARQ',capa_url:cover,capa_alt:el('newsCoverAlt').value.trim(),link_externo:link,link_rotulo:el('newsLinkLabel').value.trim()||'Saiba mais',publicado:el('newsPublished').checked,destaque:el('newsFeatured').checked,publicado_em:d.toISOString(),atualizado_em:new Date().toISOString()};
+  const id=el('newsId').value;const result=id?await client.from('caarq_noticias').update(payload).eq('id',id).select('id').single():await client.from('caarq_noticias').insert(payload).select('id').single();if(result.error)throw Error('Não foi possível salvar o texto. Confirme a permissão da Central de Novidades.');savedId=result.data.id;
+  const warnings=[];
+  if(coverFile){try{const item=await newsUpload(coverFile);cover=item.url;const {error}=await client.from('caarq_noticias').update({capa_url:cover,atualizado_em:new Date().toISOString()}).eq('id',savedId);if(error)warnings.push('capa enviada, mas não vinculada');}catch(error){warnings.push(error.message||'falha ao enviar capa');}}
+  let pos=newsPhotos.length;
+  for(const file of galleries){try{const img=await newsUpload(file);const {error}=await client.from('caarq_noticias_fotos').insert({noticia_id:savedId,url:img.url,legenda:'',ordem:pos++});if(error){warnings.push('foto enviada, mas não vinculada');await client.storage.from('caarq-imagens').remove([img.path]);}}catch(error){warnings.push('uma foto não foi enviada');}}
+  newsReset();await newsLoad();newsMsg(warnings.length?`Texto salvo, mas houve problemas com imagens: ${[...new Set(warnings)].join('; ')}.`:'Publicação salva! Edite quando quiser pelo painel.',warnings.length===0);
+ }catch(error){newsMsg(error.message||'Não foi possível salvar a publicação.');if(savedId){await newsLoad();}}
+ finally{button.disabled=false;newsBusy=false;}
+});
+
+// Ao navegar por outros editores, fecha o blog sem apagar dados.
+for(const id of ['openProfile','openMembers','openProjects','openAppearance','openAccess','openNotifications','openNotificationsTop','openChat','openAudit','openLoca']) {
+ el(id)?.addEventListener('click',()=>{el('newsManager').hidden=true;},{capture:true});
+}
+
 // Iniciar autenticação SOMENTE após declarar todos os editores e eventos.
 try {
   const inviteInUrl = location.hash.includes('type=invite') || location.search.includes('type=invite') || location.hash.includes('type=recovery') || location.search.includes('type=recovery');
@@ -2006,4 +2102,5 @@ try {
   show('loginView');
   notice('loginMessage', 'Não foi possível iniciar a conexão com o Supabase. Verifique sua internet ou tente novamente mais tarde.');
 }
+
 

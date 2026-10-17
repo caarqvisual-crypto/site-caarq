@@ -261,3 +261,20 @@ body{overflow-x:hidden}
 #organogramEditor .record-actions{display:flex;flex-wrap:wrap;gap:7px}
 #organogramEditor .record-actions button{min-width:40px}
 @media(max-width:650px){.theme-color-pair{width:100%}.theme-color-pair input:not([type=color]){flex:1}}
+
+/* V18 · Editor de Novidades / Memórias (visual CAARQ) */
+.news-manager .manager-top em{color:#9c62aa;font-style:normal}
+.news-editor .edit-form textarea#newsContent{font-family:Montserrat,Arial,sans-serif;font-size:13px;line-height:1.95;min-height:280px;resize:vertical}
+.news-cover-preview{width:min(100%,600px);height:250px;object-fit:contain;background:#f5edf7;border:1px solid #e6d7eb;border-radius:9px}
+.news-photo-editor{padding:22px 0 0;margin-top:24px;border-top:1px solid #e9e0ee}
+.news-photo-editor h4{font-size:16px;color:var(--purple)}
+.news-photo-item{display:flex;align-items:center;gap:15px;border:1px solid #e9dfed;background:#fbf9fc;border-radius:8px;padding:12px}
+.news-photo-item>img{width:90px;height:75px;object-fit:cover;border-radius:6px;flex:0 0 auto}
+.news-photo-meta{flex:1;min-width:0}.news-photo-meta label{display:block}.news-photo-meta input{margin-bottom:6px!important;min-height:38px!important}
+.news-photo-actions{display:flex;gap:7px;flex-wrap:wrap}.news-photo-actions button{background:#fff;border:1px solid #e2d4e8;padding:9px;font-size:11px;font-weight:800;border-radius:5px;color:var(--purple)}
+.news-photo-actions button.danger{color:#a23a3a}
+.news-record-status{font-size:10px;font-weight:800;text-transform:uppercase;color:#684976;background:#f4e9f7;padding:5px 8px;border-radius:4px}
+.news-record-status.live{color:#226d40;background:#e6f6e9}
+.news-record-status.scheduled{color:#795712;background:#fff1bc}
+.news-manager .news-record{align-items:center}
+@media(max-width:640px){.news-photo-item{align-items:flex-start;flex-wrap:wrap}.news-photo-meta{width:100%}.news-photo-actions{width:100%}}
