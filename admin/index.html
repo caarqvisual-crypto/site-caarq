@@ -1,165 +1,135 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#40194f">
-  <meta name="description" content="CAARQ Bríggida Lourenço — Centro Acadêmico de Arquivologia da UEPB, Campus V.">
-  <title>CAARQ Bríggida Lourenço | Arquivologia UEPB</title>
+  <meta name="theme-color" content="#361348">
+  <meta name="robots" content="noindex,nofollow">
+  <title>CAARQ Admin — Acesso restrito</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
-  <div class="announcement"><span class="announcement-dot"></span> Centro Acadêmico de Arquivologia · UEPB Campus V</div>
-  <header class="site-header">
-    <div class="container nav-wrap">
-      <a class="brand" href="#inicio" aria-label="CAARQ — início">
-        <img src="logo-caarq.png" alt="Logo oficial do CAARQ">
-        <span><strong>CAARQ</strong><small>Bríggida Lourenço</small></span>
-      </a>
-      <button class="menu-toggle" id="menuToggle" aria-expanded="false" aria-controls="mainNav">☰ <span>Menu</span></button>
-      <nav id="mainNav" class="main-nav" aria-label="Navegação principal">
-        <a href="#sobre">Quem somos</a>
-        <a href="#atuacao">O que fazemos</a>
-        <a href="projetos/">Projetos e calendário</a>
-        <a href="membros/">Membros</a>
-        <a href="#novidades">Novidades</a>
-        <a href="#loja">Loja</a>
-        <a class="nav-cta" href="admin/">Área dos Membros <span>↗</span></a>
-      </nav>
-    </div>
-  </header>
-
-  <main>
-    <section class="hero" id="inicio">
-      <div class="hero-grid"></div>
-      <div class="hero-orbit orbit-one"></div><div class="hero-orbit orbit-two"></div>
-      <div class="container hero-layout">
-        <div class="hero-copy">
-          <div class="eyebrow"><span class="eyebrow-line"></span> Memória · Acesso · Participação</div>
-          <h1>Guardar memórias.<br><em>Transformar</em> futuros.</h1>
-          <p class="hero-lead">Somos o Centro Acadêmico de Arquivologia da UEPB, Campus V. Um espaço de representação estudantil, diálogo e construção coletiva.</p>
-          <div class="hero-actions">
-            <a class="button button-yellow" href="#sobre">Conheça o CAARQ <span>↓</span></a>
-            <a class="text-link" href="#atuacao">O que fazemos <span>↗</span></a>
+  <div class="layout">
+    <aside class="intro-panel">
+      <div class="top-brand"><img class="admin-real-logo" src="../logo-caarq.png" alt="Logo CAARQ"><span>CAARQ <small>Bríggida Lourenço</small></span></div>
+      <div class="intro-main">
+        <p class="eyebrow"><span class="eyebrow-line"></span> ESPAÇO DA GESTÃO</p>
+        <h1>Nosso CA.<br><em>Nossa</em><br>história.</h1>
+        <p>Um espaço reservado para cuidar de cada detalhe do Centro Acadêmico de Arquivologia da UEPB.</p>
+        <div class="symbol-board" aria-hidden="true"><div class="paper paper-left"><span>ARQUIVO · 2026</span><b>UEPB</b><i>✳</i></div><div class="paper paper-right"><span>GESTÃO<br>PARTICIPATIVA</span><strong>CAARQ</strong><small>MEMÓRIA EM MOVIMENTO</small></div><div class="badge-dot">✳</div></div>
+      </div>
+      <div class="panel-footer"><span>UEPB · CAMPUS V</span><span>ARQUIVOLOGIA ↗</span></div>
+    </aside>
+    <main class="content-panel">
+      <header class="topline"><a href="../">← Voltar ao site</a><span class="lock-caption">◈ ACESSO RESTRITO</span></header>
+      <section id="loading" class="auth-panel state-panel" aria-live="polite"><span class="spinner"></span><p>Preparando o acesso seguro…</p></section>
+      <section id="loginView" class="auth-panel" hidden>
+        <div class="mini-icon" aria-hidden="true">⌑</div>
+        <p class="kicker">PAINEL ADMINISTRATIVO</p>
+        <h2>Bem-vinda<br>à gestão <em>CAARQ.</em></h2>
+        <p class="subtext">Entre com sua conta autorizada para acessar o painel de administração.</p>
+        <form id="loginForm" novalidate>
+          <label for="email">E-mail de acesso</label>
+          <input id="email" type="email" autocomplete="username" inputmode="email" required placeholder="seuemail@exemplo.com">
+          <label for="password">Senha</label>
+          <div class="password-field"><input id="password" type="password" autocomplete="current-password" minlength="6" required placeholder="Digite sua senha"><button type="button" class="show-password" id="togglePassword" aria-label="Mostrar senha">Mostrar</button></div>
+          <div id="loginMessage" role="alert" class="message" hidden></div>
+          <button id="loginButton" type="submit" class="primary-button">Entrar no painel <span>↗</span></button>
+        </form>
+        <p class="helptext">Não tem acesso? Peça à administração geral do Centro Acadêmico. Não há cadastro público.</p>
+      </section>
+      <section id="passwordView" class="auth-panel" hidden>
+        <p class="kicker">CONVITE PARA A GESTÃO</p>
+        <h2>Crie sua <em>senha.</em></h2>
+        <p class="subtext">Defina uma senha para concluir a ativação da sua conta.</p>
+        <form id="passwordForm"><label for="newPassword">Nova senha</label><input id="newPassword" type="password" autocomplete="new-password" minlength="8" required placeholder="Mínimo de 8 caracteres"><div id="passwordMessage" role="alert" class="message" hidden></div><button id="savePasswordButton" type="submit" class="primary-button">Salvar minha senha <span>↗</span></button></form>
+      </section>
+      <section id="deniedView" class="auth-panel" hidden>
+        <div class="mini-icon">!</div><p class="kicker">ACESSO NÃO LIBERADO</p><h2>Conta sem <em>permissão.</em></h2><p class="subtext" id="deniedText">Sua conta ainda não está autorizada a acessar o CAARQ Admin. Entre em contato com a administração geral.</p><button id="deniedLogout" class="primary-button" type="button">Sair da conta <span>↗</span></button>
+      </section>
+      <section id="dashboardView" class="dashboard" hidden>
+        <div class="dashboard-head"><div><p class="kicker">GESTÃO DO CENTRO ACADÊMICO</p><h2>Painel <em>CAARQ.</em></h2><p class="subtext">Seu acesso está ativo. Gerencie a equipe pública, os projetos, eventos e o calendário sem editar códigos.</p></div><span class="role-tag" id="roleTag">Membro autorizado</span></div>
+        <div class="account-strip"><div><span class="strip-label">CONTA CONECTADA</span><strong id="accountEmail"></strong></div><button id="logoutButton" type="button" class="logout-button">Sair da conta ↗</button></div>
+        <div class="tiles">
+          <article class="tile"><div class="tile-icon">▣</div><h3>Loja LOCA</h3><p>Produtos, valores, estoque e imagens</p><span>Em preparação</span></article>
+          <article class="tile"><div class="tile-icon">✳</div><h3>Identidade visual</h3><p>Banners, cores e logotipo</p><span>Em preparação</span></article>
+          <article class="tile tile-ready" id="projectsTile"><div class="tile-icon">▤</div><h3>Projetos e calendário</h3><p>Eventos, projetos concluídos, datas, responsáveis e fotos</p><button id="openProjects" type="button" class="tile-action">Gerenciar atividades →</button></article>
+          <article class="tile tile-ready" id="membersTile"><div class="tile-icon">♧</div><h3>Equipe do site público</h3><p>Gestão atual, integrantes e gestões anteriores</p><button id="openMembers" type="button" class="tile-action">Abrir editor de membros →</button></article>
+        </div>
+        <section id="membersManager" class="members-manager" hidden aria-labelledby="membersTitle">
+          <div class="manager-top"><div><p class="kicker">EDIÇÃO DO SITE PÚBLICO</p><h3 id="membersTitle">Membros e gestões</h3><p>Cadastre a gestão, depois inclua seus integrantes. Dados não publicados ficam visíveis somente a editores autorizados.</p></div><button type="button" id="closeMembers" class="logout-button">← Voltar ao painel</button></div>
+          <div id="memberFeedback" role="status" aria-live="polite" class="message" hidden></div>
+          <div class="manager-block">
+            <div class="block-head"><h4>1. Gestões do CAARQ</h4><p>Gestões anteriores permanecem no histórico.</p></div>
+            <form id="gestaoForm" class="edit-form">
+              <input id="gestaoId" type="hidden">
+              <div class="form-grid"><div><label for="gestaoNome">Nome da gestão *</label><input id="gestaoNome" type="text" maxlength="120" required placeholder="Ex.: Gestão 2026–2027"></div>
+              <div><label for="gestaoInicio">Ano de início</label><input id="gestaoInicio" type="number" min="1950" max="2200" inputmode="numeric" placeholder="2026"></div>
+              <div><label for="gestaoFim">Ano de término</label><input id="gestaoFim" type="number" min="1950" max="2200" inputmode="numeric" placeholder="2027"></div></div>
+              <div class="checks"><label class="check-label"><input id="gestaoAtual" type="checkbox"> Marcar como gestão atual</label><label class="check-label"><input id="gestaoPublicada" type="checkbox"> Exibir no site público</label></div>
+              <div class="form-actions"><button type="submit" id="saveGestao" class="primary-button">Salvar gestão ↗</button><button type="button" id="cancelGestao" class="logout-button">Limpar formulário</button></div>
+            </form>
+            <div id="gestoesList" class="records-list"><p class="empty-records">Carregando gestões…</p></div>
           </div>
-          <div class="hero-note"><span class="note-symbol">✳</span><span>Uma história feita por estudantes,<br>com estudantes e para estudantes.</span></div>
-        </div>
-        <div class="hero-art" aria-label="Composição gráfica inspirada em arquivos, documentos e memória">
-          <div class="art-backdrop"></div>
-          <div class="art-label label-top">ARQUIVO VIVO <span>01 / 03</span></div>
-          <div class="folder folder-back"><div class="folder-tab"></div><div class="folder-lines"></div></div>
-          <div class="document document-back"><span class="doc-stamp">UEPB</span><div class="doc-rule"></div><div class="doc-rule short"></div><div class="doc-rule"></div><div class="doc-rule medium"></div><div class="doc-seal">✳</div></div>
-          <div class="document document-front"><div class="doc-topline"><span>CAARQ</span><span>BL · 2026</span></div><div class="doc-title">MEMÓRIA<br><b>EM MOVIMENTO</b></div><div class="doc-rule"></div><div class="doc-rule medium"></div><div class="doc-rule short"></div><div class="doc-footer"><span>ARQUIVOLOGIA</span><span>UEPB · CAMPUS V</span></div></div>
-          <div class="yellow-disc"><span>✳</span></div>
-          <div class="art-caption"><span class="caption-mark">⌁</span> Cada documento guarda<br>um pedaço do mundo.</div>
-          <div class="art-label label-bottom">CAARQ BRÍGGIDA LOURENÇO <span>2026</span></div>
-        </div>
-      </div>
-      <div class="hero-bottomline"><div class="container"><span>REPRESENTAÇÃO ESTUDANTIL</span><span class="line"></span><span>ARQUIVOLOGIA · UEPB</span></div></div>
-    </section>
+          <div class="manager-block">
+            <div class="block-head"><h4>2. Integrantes de cada gestão</h4><p>Cadastre nome, cargo e foto. Para fotos, nesta versão use um link público da imagem; depois adicionaremos envio direto do computador.</p></div>
+            <form id="membroForm" class="edit-form">
+              <input id="membroId" type="hidden">
+              <div class="form-grid">
+                <div><label for="membroGestao">Gestão *</label><select id="membroGestao" required><option value="">Selecione uma gestão</option></select></div>
+                <div><label for="membroNome">Nome do integrante *</label><input id="membroNome" required maxlength="160" placeholder="Nome completo"></div>
+                <div><label for="membroCargo">Cargo *</label><input id="membroCargo" required maxlength="120" placeholder="Ex.: Coordenação de Comunicação"></div>
+                <div><label for="membroOrdem">Ordem de exibição</label><input id="membroOrdem" type="number" min="0" max="9999" value="0"></div>
+                <div class="form-full"><label for="membroBio">Apresentação (opcional)</label><textarea id="membroBio" rows="3" maxlength="1000" placeholder="Breve apresentação"></textarea></div>
+                <div class="form-full"><label for="membroFoto">Link público da foto (opcional)</label><input id="membroFoto" type="url" inputmode="url" placeholder="https://exemplo.com/foto.jpg"></div>
+              </div>
+              <div class="checks"><label class="check-label"><input id="membroPublicado" type="checkbox"> Exibir este integrante no site público</label></div>
+              <div class="form-actions"><button type="submit" class="primary-button" id="saveMembro">Salvar integrante ↗</button><button type="button" id="cancelMembro" class="logout-button">Limpar formulário</button></div>
+            </form>
+            <div class="member-filter"><label for="filterGestao">Visualizar integrantes</label><select id="filterGestao"><option value="">Todas as gestões</option></select></div>
+            <div id="membrosList" class="records-list"><p class="empty-records">Carregando integrantes…</p></div>
+          </div>
+          <p class="bottom-note">🔐 Salvar uma gestão ou integrante não dá acesso ao painel administrativo. Contas e permissões de login continuam separadas.</p>
+        </section>
 
-    <section class="intro section-pad" id="sobre">
-      <div class="container intro-layout">
-        <div class="section-index"><span>01</span><i></i><small>QUEM SOMOS</small></div>
-        <div class="intro-main">
-          <p class="kicker">Muito mais que uma sala, um ponto de encontro.</p>
-          <h2>O CAARQ é a voz coletiva de quem <span>vive a Arquivologia.</span></h2>
-        </div>
-        <div class="intro-aside"><p>Um espaço para aproximar estudantes, acolher ideias e fortalecer a participação na vida acadêmica.</p><a class="arrow-link" href="#atuacao">Conheça nossa atuação <span>↗</span></a></div>
-      </div>
-      <div class="container values-row">
-        <article class="value-card value-purple"><span class="value-number">01 /</span><span class="value-icon">⌘</span><h3>Representar</h3><p>Levar as demandas dos estudantes aos espaços de diálogo e decisão.</p></article>
-        <article class="value-card value-yellow"><span class="value-number">02 /</span><span class="value-icon">✳</span><h3>Conectar</h3><p>Criar oportunidades de convivência, troca e colaboração.</p></article>
-        <article class="value-card value-cream"><span class="value-number">03 /</span><span class="value-icon">▤</span><h3>Preservar</h3><p>Valorizar a Arquivologia, a memória e o acesso à informação.</p></article>
-      </div>
-    </section>
-
-    <section class="manifesto section-pad" id="atuacao">
-      <div class="container manifesto-layout">
-        <div class="section-index light"><span>02</span><i></i><small>NA PRÁTICA</small></div>
-        <div class="manifesto-copy">
-          <p class="kicker kicker-light">Participação que sai do papel</p>
-          <h2>Ideias que viram ações.<br><em>Estudantes que fazem história.</em></h2>
-          <p class="manifesto-lead">O Centro Acadêmico trabalha para fortalecer a experiência universitária, apoiar iniciativas dos estudantes e manter os canais de comunicação abertos.</p>
-          <a class="button button-yellow" href="#contato">Vamos conversar <span>↗</span></a>
-        </div>
-        <div class="manifesto-stamp"><span>CAARQ</span><b>ARQ</b><small>UEPB · CAMPUS V</small><i>✳</i></div>
-      </div>
-      <div class="manifesto-footer"><div class="container"><span>MEMÓRIA É DIREITO</span><span>INFORMAÇÃO É POTÊNCIA</span><span>PARTICIPAÇÃO É CONSTRUÇÃO</span></div></div>
-    </section>
-
-    <section class="news section-pad" id="novidades">
-      <div class="container">
-        <div class="section-heading">
-          <div><p class="kicker">Acompanhe de perto</p><h2>O que acontece<br><span>por aqui.</span></h2></div>
-          <p class="heading-side">Este espaço pode reunir avisos, eventos, projetos e notícias do curso. Em breve, as publicações poderão ser atualizadas conforme a rotina do CAARQ.</p>
-        </div>
-        <div class="news-grid">
-          <article class="news-card news-feature">
-            <div class="news-visual visual-purple"><span class="visual-chip">VIDA ACADÊMICA</span><div class="visual-big-type">CA<span>ARQ</span></div><div class="visual-spark">✳</div><div class="visual-bottom">IDEIAS · ENCONTROS · AÇÃO</div></div>
-            <div class="news-card-content"><div class="card-meta"><span>ESPAÇO DO CA</span><span>01</span></div><h3>Um lugar para participar, propor e construir junto.</h3><p>O Centro Acadêmico é feito pela participação estudantil. Acompanhe por aqui os próximos avisos e iniciativas.</p></div>
-          </article>
-          <article class="news-card">
-            <div class="news-visual visual-yellow"><span class="visual-chip chip-dark">ARQUIVOLOGIA</span><div class="file-stack"><span>DOC.</span><span>MEMÓRIA</span><span>ACESSO</span></div><div class="visual-stamp">UEPB<br>V</div><div class="visual-bottom dark-text">CONHECIMENTO EM CIRCULAÇÃO</div></div>
-            <div class="news-card-content"><div class="card-meta"><span>CURSO & COMUNIDADE</span><span>02</span></div><h3>Arquivologia conecta informação, memória e sociedade.</h3><p>Um campo que organiza, preserva e amplia o acesso aos registros que contam nossas histórias.</p></div>
-          </article>
-          <article class="news-card news-small">
-            <div class="news-visual visual-cream"><span class="visual-chip chip-outline">PARTICIPE</span><div class="quote-mark">“</div><div class="quote-copy">Sua voz<br>faz parte<br><b>da história.</b></div><div class="visual-bottom">CAARQ · BRÍGGIDA LOURENÇO</div></div>
-            <div class="news-card-content"><div class="card-meta"><span>ESCUTA ESTUDANTIL</span><span>03</span></div><h3>Tem uma ideia ou uma demanda?</h3><p>Entre em contato com o CAARQ pelos canais oficiais.</p><a class="arrow-link" href="#contato">Falar com o CA <span>↗</span></a></div>
-          </article>
-        </div>
-      </div>
-    </section>
-
-
-    <section class="home-team section-pad" id="equipe">
-      <div class="container">
-        <div class="section-heading">
-          <div><p class="kicker">Gente que faz acontecer</p><h2>O rosto da <span>nossa gestão.</span></h2></div>
-          <p class="heading-side">Conheça as pessoas que representam os estudantes de Arquivologia e visite nosso arquivo de gestões anteriores.</p>
-        </div>
-        <div id="homeTeamCards" class="home-card-grid" aria-live="polite"><p class="home-status">Carregando gestão atual…</p></div>
-        <a class="home-more" href="membros/">Conhecer toda a equipe e gestões anteriores <span>↗</span></a>
-      </div>
-    </section>
-    <section class="home-projects section-pad" id="projetos-resumo">
-      <div class="container">
-        <div class="section-heading"><div><p class="kicker">Arquivo vivo do CAARQ</p><h2>Projetos, eventos <span>e calendário.</span></h2></div>
-        <p class="heading-side">Acompanhe as ações em andamento, descubra os próximos encontros e explore nossos projetos concluídos.</p></div>
-        <div id="homeProjectCards" class="home-card-grid" aria-live="polite"><p class="home-status">Carregando atividades…</p></div>
-        <a class="home-more" href="projetos/">Abrir projetos e calendário completo <span>↗</span></a>
-      </div>
-    </section>
-
-    <section class="shop section-pad" id="loja">
-      <div class="container shop-layout">
-        <div class="shop-copy">
-          <p class="kicker">Vista essa ideia</p>
-          <h2>Loja do<br><span>CAARQ.</span></h2>
-          <p>Um espaço para reunir produtos, materiais e itens do Centro Acadêmico. O catálogo será preenchido com as fotos e informações oficiais dos produtos.</p>
-          <span class="coming-soon"><span></span> CATÁLOGO EM PREPARAÇÃO</span>
-        </div>
-        <div class="shop-art">
-          <div class="shop-circle"></div><div class="shop-card card-shirt"><div class="shirt-shape">CA<br><small>ARQ</small></div><span>CAMISAS</span></div>
-          <div class="shop-card card-tote"><div class="tote-shape"><span>CAARQ</span><i>✳</i></div><span>ACESSÓRIOS</span></div>
-          <div class="shop-card card-sticker"><div class="sticker-shape">ARQ<span>✳</span></div><span>IDENTIDADE</span></div>
-          <div class="shop-note">Produtos oficiais<br>do nosso CA <b>↗</b></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="contact section-pad" id="contato">
-      <div class="container contact-panel">
-        <div class="contact-top"><span>03 / CONTATO</span><span>PORTAS ABERTAS PARA O DIÁLOGO</span></div>
-        <div class="contact-main"><div><p class="kicker kicker-light">Chega mais!</p><h2>O próximo capítulo<br>também pode ter <em>sua voz.</em></h2></div><div class="contact-action"><p>Quer sugerir, perguntar ou acompanhar o que acontece no curso? Fale com o Centro Acadêmico.</p><a class="button button-yellow" href="https://sites.google.com/view/ca-arquivologia?usp=sharing" target="_blank" rel="noopener noreferrer">Acessar site anterior <span>↗</span></a><a class="contact-email" href="https://www.instagram.com/" target="_blank" rel="noopener noreferrer">Acompanhe as redes sociais ↗</a></div></div>
-        <div class="contact-bottom"><span>CAARQ BRÍGGIDA LOURENÇO</span><span>CENTRO ACADÊMICO DE ARQUIVOLOGIA</span><span>UEPB · CAMPUS V</span></div>
-      </div>
-    </section>
-  </main>
-  <footer class="site-footer"><div class="container footer-inner"><a class="footer-brand" href="#inicio">CAARQ<span>✳</span></a><p>Memória, acesso e participação.</p><a href="#inicio">Voltar ao início ↑</a><small>© <span id="year"></span> CAARQ Bríggida Lourenço</small></div></footer>
+        <section id="projectsManager" class="members-manager" hidden aria-labelledby="projectsTitle">
+          <div class="manager-top"><div><p class="kicker">EDIÇÃO DO SITE PÚBLICO</p><h3 id="projectsTitle">Projetos, eventos e calendário</h3><p>Cadastre uma atividade. Quando for publicada, ela aparecerá automaticamente na página de projetos e no calendário (para eventos com data).</p></div><button type="button" id="closeProjects" class="logout-button">← Voltar ao painel</button></div>
+          <div id="projectFeedback" class="message" role="status" aria-live="polite" hidden></div>
+          <div class="manager-block">
+            <div class="block-head"><h4>Cadastrar ou editar atividade</h4><p>Use “Projeto” para ações do Centro Acadêmico e “Evento” para colocar uma data no calendário. Projetos concluídos vão para o histórico automaticamente.</p></div>
+            <form id="projectForm" class="edit-form">
+              <input type="hidden" id="activityId">
+              <div class="form-grid">
+                <div><label for="activityType">Tipo *</label><select id="activityType" required><option value="projeto">Projeto</option><option value="evento">Evento / calendário</option></select></div>
+                <div><label for="activityTitle">Nome do projeto ou evento *</label><input id="activityTitle" type="text" maxlength="180" required placeholder="Ex.: Semana de Arquivologia"></div>
+                <div><label for="activityStatus">Situação *</label><select id="activityStatus" required><option value="planejado">Planejado</option><option value="em_andamento">Em andamento</option><option value="concluido">Concluído</option><option value="cancelado">Cancelado</option></select></div>
+                <div><label for="activityResponsible">Responsáveis</label><input id="activityResponsible" maxlength="400" placeholder="Ex.: Diretoria de Eventos"></div>
+                <div><label for="activityStart">Data de início</label><input id="activityStart" type="date"></div>
+                <div><label for="activityEnd">Data de término</label><input id="activityEnd" type="date"></div>
+                <div><label for="activityTime">Horário</label><input id="activityTime" maxlength="120" placeholder="Ex.: 14h às 18h"></div>
+                <div><label for="activityLocation">Local</label><input id="activityLocation" maxlength="300" placeholder="Ex.: UEPB — Campus V"></div>
+                <div class="form-full"><label for="activityDescription">Descrição</label><textarea id="activityDescription" rows="4" maxlength="5000" placeholder="Explique o evento, objetivo e outras informações…"></textarea></div>
+                <div class="form-full"><label for="activityFile">Foto / cartaz (JPEG, PNG, WebP — até 5 MB)</label><input id="activityFile" type="file" accept="image/jpeg,image/png,image/webp"><small class="file-help">Opcional. Você também pode usar um link HTTPS abaixo.</small></div>
+                <div class="form-full"><label for="activityPhoto">Link público da foto (opcional)</label><input id="activityPhoto" type="url" placeholder="https://exemplo.com/cartaz.png"><small class="file-help">Se selecionar um arquivo, ele será enviado ao Supabase e terá prioridade sobre o link.</small></div>
+              </div>
+              <div class="checks"><label class="check-label"><input id="activityPublished" type="checkbox"> Publicar no site e no calendário (se for um evento)</label></div>
+              <div class="form-actions"><button id="saveActivity" type="submit" class="primary-button">Salvar atividade ↗</button><button type="button" id="clearActivity" class="logout-button">Limpar formulário</button></div>
+            </form>
+          </div>
+          <div class="manager-block"><div class="block-head"><h4>Atividades cadastradas</h4><p>Edite as informações ou altere a visibilidade. Não é necessário mexer no GitHub para atualizar.</p></div>
+            <div class="member-filter"><label for="activityFilter">Mostrar</label><select id="activityFilter"><option value="todos">Todos os registros</option><option value="projeto">Só projetos</option><option value="evento">Só eventos</option><option value="concluido">Concluídos</option></select></div>
+            <div id="activitiesList" class="records-list"><p class="empty-records">Os registros aparecerão aqui.</p></div>
+          </div>
+          <p class="bottom-note">🔐 Somente administradores gerais e editores autorizados podem salvar projetos. Fotos enviadas ao armazenamento público devem ser adequadas à divulgação.</p>
+        </section>
+        <p class="bottom-note">🔐 As permissões de edição serão verificadas no banco de dados. Estar conectado não significa poder modificar informações.</p>
+      </section>
+      <footer class="content-footer">CAARQ BRÍGGIDA LOURENÇO <span>© 2026</span></footer>
+    </main>
+  </div>
   <script type="module" src="script.js?v=4"></script>
 </body>
 </html>
