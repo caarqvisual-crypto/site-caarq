@@ -64,3 +64,29 @@ async function load(){
   }
 }
 load();
+
+
+// V6 — compartilha a identidade visual escolhida no CAARQ Admin.
+function validAppearanceColor(c){return /^#[0-9a-fA-F]{6}$/.test(c||'');}
+function shade(c,factor){return '#'+[1,3,5].map(i=>Math.max(0,Math.min(255,Math.round(parseInt(c.slice(i,i+2),16)*factor))).toString(16).padStart(2,'0')).join('');}
+function appearanceImageUrl(value){try{const u=new URL(value);return u.protocol==='https:'?u.href:null;}catch{return null;}}
+async function applySharedAppearance(){
+ try{
+  const {data,error}=await client.from('caarq_aparencia').select('primary_color,accent_color,logo_url').eq('id',1).maybeSingle();
+  if(error||!data)return;
+  const root=document.documentElement;
+  if(validAppearanceColor(data.primary_color)){
+   root.style.setProperty('--purple',data.primary_color);
+   root.style.setProperty('--purple-deep',shade(data.primary_color,.66));
+   root.style.setProperty('--violet',shade(data.primary_color,1.25));
+  }
+  if(validAppearanceColor(data.accent_color))root.style.setProperty('--yellow',data.accent_color);
+  const logo=appearanceImageUrl(data.logo_url);
+  if(logo){
+   for(const img of document.querySelectorAll('.brand img,.hero-symbol>img,.end-layout img')){
+    img.onerror=()=>{img.onerror=null;img.src='../logo-caarq.png';};img.src=logo;
+   }
+  }
+ }catch(error){/* sem conexão mantém o visual publicado */}
+}
+void applySharedAppearance();
