@@ -134,3 +134,20 @@ body{overflow-x:hidden}
 .access-row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.access-row button{font-size:11px;font-weight:800;padding:11px 13px;border:1px solid var(--border);border-radius:5px;background:white;color:var(--purple);cursor:pointer}.access-row button.primary{background:var(--purple);color:white}.access-row button.warn{color:#a23f2e;border-color:#f0cbc5}
 .access-row button:disabled{opacity:.5;cursor:wait}
 @media(max-width:650px){.permissions-set{grid-template-columns:1fr}.access-record-top{flex-direction:column;align-items:flex-start}.access-row{align-items:stretch}.access-row button{flex:1}}
+
+/* Versão 11: ícones, estados e ajustes para a caixa de mensagens */
+.chat-tile{background:linear-gradient(140deg,#fff,#faf4ff)}
+.chat-tile .tile-icon{color:#70419a}
+.chat-contact:hover{background:#f5ecf8;cursor:pointer}
+.chat-contact:focus-visible,.chat-icon-button:focus-visible{outline:3px solid #b989e1;outline-offset:2px}
+.chat-bubble{box-shadow:0 4px 12px #3613480a}
+.chat-bubble.mine{box-shadow:0 5px 18px #36134820}
+.chat-heading{background:#fff}
+.chat-form label{display:block;font-size:12px;font-weight:800;margin-bottom:8px;color:#40194f}
+.chat-form textarea:focus{outline:3px solid #e1d1eb;border-color:#8b60a7}
+.chat-form-foot small{font-size:10px;color:#877991;line-height:1.6}
+.chat-peer-photo{font-size:24px;font-weight:900;color:#70419a}
+.chat-contact-photo{font-size:16px;color:#70419a}
+.chat-presence-dot.is-away{background:#9f9baa}
+.chat-side-heading,.chat-heading{flex-wrap:wrap}
+@media(max-width:540px){.chat-shell{border-radius:8px}.chat-message-list{padding:14px}.chat-form{padding:14px}.chat-bubble{max-width:95%}}

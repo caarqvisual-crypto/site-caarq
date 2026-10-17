@@ -72,6 +72,7 @@ async function checkAccess() {
   if (canEditMembers()) await loadData();
   el('accountEmail').textContent = user.email || 'Membro autorizado';
   show('dashboardView');
+  void chatActivate(user);
   void loadOwnProfile(user);
 }
 
@@ -132,6 +133,7 @@ el('passwordForm').addEventListener('submit', async event => {
 });
 
 async function logout() {
+  await chatDeactivate();
   currentRole = null;
   currentPermissions={pode_membros:false,pode_projetos:false,pode_aparencia:false,pode_loca:false,trocar_senha:false};
   el('accessManager').hidden = true;
@@ -822,6 +824,284 @@ el('accessCreateForm').addEventListener('submit',async e=>{
   }catch(error){accessMsg(error.message);}
   finally{button.disabled=false;}
 });
+
+// CAARQ V11 — chat privado (Postgres RLS + Supabase Realtime)
+// Nunca coloque uma chave service_role neste arquivo público.
+let chatUser = null;
+let chatMemberId = null;
+let chatIsAdmin = false;
+let chatContacts = [];
+let chatProfiles = new Map();
+let chatPresence = new Map();
+let chatPhotoUrls = new Map();
+let chatChannel = null;
+let chatTicker = null;
+let chatHeartbeat = null;
+let chatInFlight = false;
+let chatLastSignature = '';
+let chatActivationSerial = 0;
+const chatOnlineNow = id => {
+  const info = chatPresence.get(id);
+  return !!info?.online && (Date.now() - new Date(info.visto_em).getTime()) < 120000;
+};
+function chatMessage(text, success=false){notice('chatFeedback',text,success);}
+function chatAvatar(container, url, initial='✦') {
+  container.replaceChildren();
+  if (!url) { container.textContent=initial || '✦'; return; }
+  const pic=document.createElement('img'); pic.src=url; pic.alt=''; pic.loading='lazy';
+  pic.onerror=()=>{container.replaceChildren(document.createTextNode(initial || '✦'));};
+  container.append(pic);
+}
+function chatTime(value){
+  const date=new Date(value);
+  return Number.isFinite(date.getTime()) ? date.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '';
+}
+function chatName(userId){
+  if(userId===chatUser?.id) return 'Você';
+  const profile=chatProfiles.get(userId);
+  const account=chatContacts.find(x=>x.user_id===userId);
+  return profile?.apelido?.trim() || profile?.nome_exibicao?.trim() || account?.nome?.trim() || 'Integrante do CAARQ';
+}
+function chatHideOtherSections(){
+  ['membersManager','projectsManager','appearanceManager','profileManager','accessManager'].forEach(id=>{if(el(id))el(id).hidden=true;});
+}
+async function chatSetPresence(online){
+  if(!chatUser) return;
+  try {
+    const {error}=await client.from('caarq_presenca')
+      .upsert({user_id:chatUser.id,online:!!online},{onConflict:'user_id'});
+    if(error) console.warn('Presença não registrada:',error.message);
+  } catch(error) {console.warn('Falha de rede na presença:',error?.message);}
+}
+async function chatActivate(user){
+  if(!user || !currentRole) return;
+  if(chatUser?.id===user.id && chatHeartbeat) return;
+  const serial=++chatActivationSerial;
+  chatUser=user;
+  chatIsAdmin=(currentRole==='admin');
+  chatMemberId=null;
+  el('chatSidebar').hidden=!chatIsAdmin;
+  el('chatIntro').textContent=chatIsAdmin
+    ? 'Escolha um integrante para conversar. Só a Administração Geral e o titular da conversa têm acesso às mensagens.'
+    : 'Este chat é exclusivo entre você e a Administração Geral. Outros integrantes não conseguem ler suas mensagens.';
+  el('chatDraft').placeholder=chatIsAdmin?'Escreva sua resposta para o integrante…':'Escreva para a Administração Geral…';
+  if(chatHeartbeat)clearInterval(chatHeartbeat);
+  if(chatTicker)clearInterval(chatTicker);
+  await chatSetPresence(document.visibilityState==='visible');
+  if(serial!==chatActivationSerial)return;
+  chatHeartbeat=setInterval(()=>{if(chatUser&&document.visibilityState==='visible')void chatSetPresence(true);},30000);
+  chatTicker=setInterval(()=>{
+    if(el('chatManager').hidden || document.visibilityState!=='visible')return;
+    void chatRefreshCurrent(false);
+    if(chatIsAdmin)void chatLoadPresence();
+  },16000);
+}
+async function chatDeactivate(){
+  ++chatActivationSerial;
+  if(chatTicker){clearInterval(chatTicker);chatTicker=null;}
+  if(chatHeartbeat){clearInterval(chatHeartbeat);chatHeartbeat=null;}
+  if(chatChannel){await client.removeChannel(chatChannel);chatChannel=null;}
+  if(chatUser)await chatSetPresence(false);
+  chatUser=null;chatMemberId=null;chatContacts=[];
+  chatProfiles.clear();chatPresence.clear();chatPhotoUrls.clear();
+  chatLastSignature='';
+  el('chatManager').hidden=true;
+}
+async function chatLoadContacts(){
+  if(!chatUser || !chatIsAdmin)return;
+  const container=el('chatContactList');
+  try {
+    const {data,error}=await client.from('caarq_acessos')
+      .select('user_id,nome,trocar_senha').order('nome',{ascending:true});
+    if(error)throw error;
+    chatContacts=(data||[]).filter(x=>x.user_id!==chatUser.id);
+    const ids=chatContacts.map(x=>x.user_id);
+    chatProfiles.clear();
+    if(ids.length){
+      const result=await client.from('caarq_perfis').select('user_id,nome_exibicao,apelido,foto_caminho').in('user_id',ids);
+      if(result.error) console.warn('Perfis não disponíveis:',result.error.message);
+      for(const p of result.data||[])chatProfiles.set(p.user_id,p);
+    }
+    chatPhotoUrls.clear();
+    for(const p of chatProfiles.values()){
+      if(!p.foto_caminho)continue;
+      try{
+        const {data:link,error:linkError}=await client.storage.from('caarq-perfis')
+          .createSignedUrl(p.foto_caminho,600);
+        if(!linkError&&link?.signedUrl)chatPhotoUrls.set(p.user_id,link.signedUrl);
+      }catch{}
+    }
+    await chatLoadPresence();
+    chatRenderContacts();
+  }catch(error){
+    container.replaceChildren();const p=document.createElement('p');p.className='chat-empty';
+    p.textContent='Não foi possível carregar as contas. Confira o SQL da versão 11.';container.append(p);
+    chatMessage(error?.message||'Falha ao carregar contatos.');
+  }
+}
+async function chatLoadPresence(){
+  if(!chatIsAdmin || !chatUser)return;
+  const ids=chatContacts.map(x=>x.user_id);
+  if(!ids.length){chatPresence.clear();return;}
+  const {data,error}=await client.from('caarq_presenca').select('user_id,online,visto_em').in('user_id',ids);
+  if(!error){chatPresence=new Map((data||[]).map(p=>[p.user_id,p]));chatRenderContacts();chatUpdatePeerHeader();}
+}
+function chatRenderContacts(){
+  if(!chatIsAdmin || !chatUser)return;
+  const box=el('chatContactList');box.replaceChildren();
+  if(!chatContacts.length){const p=document.createElement('p');p.className='chat-empty';p.textContent='Ainda não há outros membros com login no CAARQ Admin.';box.append(p);return;}
+  for(const account of chatContacts){
+    const b=document.createElement('button');b.type='button';
+    b.className='chat-contact'+(account.user_id===chatMemberId?' selected':'');
+    b.setAttribute('aria-pressed',String(account.user_id===chatMemberId));
+    const wrap=document.createElement('span');wrap.className='chat-contact-photo';
+    chatAvatar(wrap,chatPhotoUrls.get(account.user_id),chatName(account.user_id).slice(0,1).toUpperCase());
+    const dot=document.createElement('span');dot.className='chat-presence-dot '+(chatOnlineNow(account.user_id)?'is-online':'is-away');
+    dot.title=chatOnlineNow(account.user_id)?'Online agora':'Offline ou ausente';wrap.append(dot);
+    const words=document.createElement('span');words.className='chat-contact-name';
+    words.append(document.createTextNode(chatName(account.user_id)));
+    const status=document.createElement('small');status.textContent=account.trocar_senha?'Aguardando troca de senha':chatOnlineNow(account.user_id)?'Online':'Offline ou ausente';words.append(status);
+    b.append(wrap,words);
+    b.addEventListener('click',()=>void chatSelectMember(account.user_id));
+    box.append(b);
+  }
+}
+function chatUpdatePeerHeader(){
+  if(!chatUser)return;
+  if(!chatIsAdmin){
+    el('chatPeerName').textContent='Administração Geral';
+    el('chatPeerPresence').textContent='Conversa privada • CAARQ';
+    chatAvatar(el('chatPeerAvatar'),null,'✦');
+    el('chatPeerDot').className='chat-presence-dot is-away';
+    return;
+  }
+  if(!chatMemberId){
+    el('chatPeerName').textContent='Selecione um integrante';
+    el('chatPeerPresence').textContent='Sua caixa de entrada privada';
+    chatAvatar(el('chatPeerAvatar'),null,'✦');
+    el('chatPeerDot').className='chat-presence-dot is-away';
+    return;
+  }
+  const name=chatName(chatMemberId);
+  const online=chatOnlineNow(chatMemberId);
+  el('chatPeerName').textContent=name;
+  el('chatPeerPresence').textContent=online?'Online agora':'Offline ou ausente';
+  chatAvatar(el('chatPeerAvatar'),chatPhotoUrls.get(chatMemberId),name.slice(0,1).toUpperCase());
+  el('chatPeerDot').className='chat-presence-dot '+(online?'is-online':'is-away');
+}
+async function chatSelectMember(id){
+  if(!chatUser || (chatIsAdmin && !chatContacts.some(x=>x.user_id===id)))return;
+  chatMemberId=id;chatLastSignature='';
+  chatRenderContacts();chatUpdatePeerHeader();
+  el('chatDraft').disabled=false;el('chatSend').disabled=false;
+  await chatSubscribeSelected();
+  await chatLoadMessages(true);
+}
+async function chatSubscribeSelected(){
+  if(chatChannel){await client.removeChannel(chatChannel);chatChannel=null;}
+  if(!chatMemberId)return;
+  const selected=chatMemberId;
+  chatChannel=client.channel('caarq-chat-'+selected+'-'+Date.now())
+    .on('postgres_changes',{
+      event:'INSERT',schema:'public',table:'caarq_chat_mensagens',filter:'membro_id=eq.'+selected
+    },()=>{if(selected===chatMemberId&&!el('chatManager').hidden)void chatLoadMessages(false);})
+    .subscribe();
+}
+async function chatLoadMessages(scrollEnd=false){
+  if(!chatUser||!chatMemberId || chatInFlight)return;
+  const selected=chatMemberId;
+  chatInFlight=true;
+  const list=el('chatMessageList');
+  try{
+    const {data,error}=await client.from('caarq_chat_mensagens')
+      .select('id,membro_id,remetente_id,conteudo,enviada_em')
+      .eq('membro_id',selected).order('enviada_em',{ascending:false}).limit(120);
+    if(error)throw error;
+    if(selected!==chatMemberId)return;
+    const messages=(data||[]).reverse();
+    const signature=messages.map(x=>x.id).join('|');
+    if(signature===chatLastSignature && !scrollEnd)return;
+    const atBottom=list.scrollTop+list.clientHeight >= list.scrollHeight-65;
+    chatLastSignature=signature;
+    list.replaceChildren();
+    if(!messages.length){const empty=document.createElement('p');empty.className='chat-empty';
+      empty.textContent='Esta conversa ainda não tem mensagens. Escreva para começar!';list.append(empty);return;}
+    for(const message of messages){
+      const bubble=document.createElement('div');
+      bubble.className='chat-bubble'+(message.remetente_id===chatUser.id?' mine':'');
+      const content=document.createElement('div');content.textContent=message.conteudo;
+      content.style.whiteSpace='pre-wrap';
+      const info=document.createElement('small');
+      info.textContent=(message.remetente_id===chatUser.id?'Você':chatIsAdmin?chatName(selected):'Administração Geral')+' · '+chatTime(message.enviada_em);
+      bubble.append(content,info);list.append(bubble);
+    }
+    if(atBottom || scrollEnd || !list.dataset.seen){list.scrollTop=list.scrollHeight;}
+    list.dataset.seen='true';
+  }catch(error){chatMessage('Não foi possível carregar as mensagens: '+(error?.message||'falha de rede'));}
+  finally{chatInFlight=false;}
+}
+async function chatRefreshCurrent(scrollEnd=false){
+  if(!chatMemberId)return;
+  await chatLoadMessages(scrollEnd);
+}
+el('openChat').addEventListener('click',async()=>{
+  if(!chatUser)return;
+  chatHideOtherSections();el('chatManager').hidden=false;
+  chatMessage('');
+  el('chatDraft').disabled=chatIsAdmin&&!chatMemberId;
+  el('chatSend').disabled=chatIsAdmin&&!chatMemberId;
+  if(chatIsAdmin){
+    chatMemberId=null;chatLastSignature='';chatUpdatePeerHeader();
+    el('chatMessageList').replaceChildren();
+    const empty=document.createElement('p');empty.className='chat-empty';empty.textContent='Selecione um integrante na caixa de entrada.';el('chatMessageList').append(empty);
+    await chatLoadContacts();
+  }else await chatSelectMember(chatUser.id);
+  el('chatManager').scrollIntoView({behavior:'smooth',block:'start'});
+});
+el('closeChat').addEventListener('click',()=>{
+  el('chatManager').hidden=true;
+  el('dashboardView').scrollIntoView({behavior:'smooth',block:'start'});
+});
+el('chatReloadContacts').addEventListener('click',()=>void chatLoadContacts());
+el('chatReloadMessages').addEventListener('click',()=>void chatRefreshCurrent(true));
+el('chatDraft').addEventListener('keydown',event=>{
+  if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();el('chatForm').requestSubmit();}
+});
+el('chatForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const content=el('chatDraft').value.trim();
+  const selected=chatMemberId;
+  if(!chatUser||!selected||!content || content.length>2000){chatMessage('Escolha uma conversa e escreva até 2.000 caracteres.');return;}
+  const button=el('chatSend');button.disabled=true;chatMessage('');
+  try{
+    // Criar conversa, se ainda não existir. Nunca permitir outro participante no chat do membro.
+    const {data:existing,error:readError}=await client.from('caarq_chat_conversas')
+      .select('membro_id').eq('membro_id',selected).maybeSingle();
+    if(readError)throw readError;
+    if(!existing){
+      const created=await client.from('caarq_chat_conversas').insert({membro_id:selected});
+      if(created.error && created.error.code!=='23505')throw created.error;
+    }
+    const {error}=await client.from('caarq_chat_mensagens')
+      .insert({membro_id:selected,remetente_id:chatUser.id,conteudo:content});
+    if(error)throw error;
+    el('chatDraft').value='';
+    await chatLoadMessages(true);
+  }catch(error){chatMessage('Não foi possível enviar: '+(error?.message||'confira sua conexão e a configuração do chat.'));}
+  finally{button.disabled=false;}
+});
+document.addEventListener('visibilitychange',()=>{
+  if(!chatUser)return;
+  void chatSetPresence(document.visibilityState==='visible');
+  if(document.visibilityState==='visible'&&!el('chatManager').hidden){
+    void chatRefreshCurrent();if(chatIsAdmin)void chatLoadPresence();
+  }
+});
+// Ao entrar em outro editor, fechar apenas a visualização do chat, sem apagar a conversa.
+for(const id of ['openProfile','openMembers','openProjects','openAppearance','openAccess']){
+  el(id)?.addEventListener('click',()=>{el('chatManager').hidden=true;},{capture:true});
+}
+
 
 // Iniciar autenticação SOMENTE após declarar todos os editores e eventos.
 try {
