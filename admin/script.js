@@ -21,7 +21,7 @@ const roleNames = { admin: 'Administração geral', editor: 'Editoria', loja: 'I
 let latestSession = null;
 let isSettingPassword = false;
 let currentRole = null;
-let currentPermissions = {pode_membros:false,pode_projetos:false,pode_aparencia:false,pode_loca:false,trocar_senha:false};
+let currentPermissions = {pode_membros:false,pode_projetos:false,pode_aparencia:false,pode_loca:false,pode_criar_grupos:false,trocar_senha:false};
 const canEditMembers = () => currentRole === 'admin' || currentPermissions.pode_membros;
 const canEditProjects = () => currentRole === 'admin' || currentPermissions.pode_projetos;
 const canEditAppearance = () => currentRole === 'admin' || currentPermissions.pode_aparencia;
@@ -49,7 +49,7 @@ async function checkAccess() {
   }
   currentRole = membership.role;
   const {data:access,error:accessError} = await client.from('caarq_acessos')
-    .select('pode_membros,pode_projetos,pode_aparencia,pode_loca,trocar_senha')
+    .select('pode_membros,pode_projetos,pode_aparencia,pode_loca,pode_criar_grupos,trocar_senha')
     .eq('user_id',user.id).maybeSingle();
   if (accessError || !access) {
     show('deniedView');
@@ -135,7 +135,7 @@ el('passwordForm').addEventListener('submit', async event => {
 async function logout() {
   await chatDeactivate();
   currentRole = null;
-  currentPermissions={pode_membros:false,pode_projetos:false,pode_aparencia:false,pode_loca:false,trocar_senha:false};
+  currentPermissions={pode_membros:false,pode_projetos:false,pode_aparencia:false,pode_loca:false,pode_criar_grupos:false,trocar_senha:false};
   el('accessManager').hidden = true;
   el('membersManager').hidden = true;
   el('projectsManager').hidden = true;
@@ -675,6 +675,7 @@ const accessRoles = {
   pode_projetos: 'Projetos e calendário',
   pode_aparencia: 'Aparência do site',
   pode_loca: 'Loja LOCA (em construção)',
+  pode_criar_grupos: 'Pode criar grupos no chat',
 };
 const accessFields = Object.keys(accessRoles);
 let accessLoading = false;
@@ -695,6 +696,7 @@ function userPermsFromForm(prefix){
     pode_projetos:el('newPermProjects').checked,
     pode_aparencia:el('newPermAppearance').checked,
     pode_loca:el('newPermLoca').checked,
+    pode_criar_grupos:el('newPermGroups').checked,
   };
   return accessFields.reduce((acc,key)=>({...acc,[key]:el(prefix+'-'+key)?.checked===true}),{});
 }
@@ -1109,6 +1111,7 @@ for(const id of ['openProfile','openMembers','openProjects','openAppearance','op
 }
 
 
+// CAARQ V12.1 — permissão individual para criação de grupos
 // CAARQ V12 — salas privadas, chat geral, grupos e notificações de mensagens não lidas.
 // As permissões reais são verificadas pelo Postgres/RLS e funções SECURITY DEFINER.
 let chatV12Rooms=[];
@@ -1122,6 +1125,10 @@ let chatV12UnreadTimer=null;
 let chatV12NotificationChannel=null;
 let chatV12ReadTimes=new Map();
 let chatV12ContactsLoaded=false;
+let chatV13Candidates=[];
+const chatCanCreateGroups=()=>chatIsAdmin||currentPermissions.pode_criar_grupos===true;
+const chatCanManageGroup=room=>room?.tipo==='grupo' && (chatIsAdmin ||
+  (chatCanCreateGroups() && room.criada_por===chatUser?.id));
 const chatV12Key=(type,id)=>type+':'+id;
 const chatV12UnreadCount=(type,id)=>chatV12Unread.get(chatV12Key(type,id))||0;
 function chatV12Badge(count){
@@ -1184,16 +1191,17 @@ function chatV12SwitchTab(tab){
 }
 function chatV12Checkboxes(containerId,selected=[]){
   const holder=el(containerId);holder.replaceChildren();
-  if(!chatContacts.length){
+  const candidates=chatIsAdmin?chatContacts:chatV13Candidates;
+  if(!candidates.length){
     const p=document.createElement('p');p.className='chat-empty';
     p.textContent='Nenhum integrante disponível.';holder.append(p);return;
   }
-  for(const member of chatContacts){
+  for(const member of candidates){
     if(member.trocar_senha)continue;
     const label=document.createElement('label');
     const input=document.createElement('input');input.type='checkbox';input.value=member.user_id;
     input.checked=selected.includes(member.user_id);
-    const span=document.createElement('span');span.textContent=chatName(member.user_id);
+    const span=document.createElement('span');span.textContent=chatIsAdmin?chatName(member.user_id):member.nome||'Integrante';
     label.append(input,span);holder.append(label);
   }
 }
@@ -1202,7 +1210,7 @@ function chatV12SelectedCheckboxes(holderId){
 }
 async function chatV12LoadRooms(){
   if(!chatUser)return;
-  const {data,error}=await client.from('caarq_chat_salas').select('id,tipo,nome,criada_em')
+  const {data,error}=await client.from('caarq_chat_salas').select('id,tipo,nome,criada_por,criada_em')
    .order('tipo',{ascending:true}).order('criada_em',{ascending:true});
   if(error){chatMessage('Não foi possível carregar as salas: '+error.message);return;}
   chatV12Rooms=(data||[]).sort((a,b)=>a.tipo==='geral'?-1:b.tipo==='geral'?1:a.nome.localeCompare(b.nome,'pt-BR'));
@@ -1242,9 +1250,9 @@ function chatV12RoomHeader(){
   el('chatRoomAvatar').textContent=room?.tipo==='geral'?'📣':room?'👥':'✳';
   el('chatRoomDescription').textContent=room?.tipo==='geral'
     ?'Visível a todos os integrantes com acesso ativo'
-    :room?'Somente integrantes convidados e Administração Geral':'Escolha uma conversa';
+    :room?'Somente participantes convidados e Administração Geral':'Escolha uma conversa';
   el('chatRoomDraft').disabled=!room;el('chatRoomSend').disabled=!room;
-  el('chatManageGroup').hidden=!chatIsAdmin||room?.tipo!=='grupo';
+  el('chatManageGroup').hidden=!chatCanManageGroup(room);
   el('chatMentionAll').hidden=!chatIsAdmin||room?.tipo!=='geral';
   el('chatGroupManagePanel').hidden=true;
 }
@@ -1302,7 +1310,7 @@ async function chatV12LoadRoomMessages(scrollEnd=false){
 async function chatV12Activate(){
   if(!chatUser)return;
   chatV12SelectedRoom=null;chatV12Rooms=[];chatV12Unread.clear();
-  el('chatGroupCreate').hidden=!chatIsAdmin;
+  el('chatGroupCreate').hidden=!chatCanCreateGroups();
   el('chatUnreadBadge').hidden=true;
   if(chatV12UnreadTimer)clearInterval(chatV12UnreadTimer);
   chatV12UnreadTimer=setInterval(()=>{
@@ -1328,13 +1336,19 @@ async function chatV12Activate(){
 async function chatV12Deactivate(){
   if(chatV12UnreadTimer){clearInterval(chatV12UnreadTimer);chatV12UnreadTimer=null;}
   if(chatV12NotificationChannel){await client.removeChannel(chatV12NotificationChannel);chatV12NotificationChannel=null;}
-  chatV12Unread.clear();chatV12Rooms=[];chatV12SelectedRoom=null;chatV12ReadTimes.clear();
+  chatV12Unread.clear();chatV12Rooms=[];chatV12SelectedRoom=null;chatV12ReadTimes.clear();chatV13Candidates=[];
   el('chatUnreadBadge').hidden=true;
 }
 async function chatV12OpenGroupTab(){
   if(!chatUser)return;
-  if(chatIsAdmin){
-    if(!chatContacts.length)await chatLoadContacts();
+  if(chatCanCreateGroups()){
+    if(chatIsAdmin){
+      if(!chatContacts.length)await chatLoadContacts();
+    }else{
+      const {data,error}=await client.rpc('caarq_chat_candidatos_grupo');
+      if(error){chatMessage('Não foi possível carregar integrantes: '+error.message);return;}
+      chatV13Candidates=(data||[]).filter(x=>x.user_id!==chatUser.id);
+    }
     chatV12Checkboxes('chatNewGroupMembers');
   }
   chatV12SwitchTab('sala');
@@ -1366,7 +1380,7 @@ el('chatRoomForm').addEventListener('submit',async event=>{
   finally{button.disabled=false;}
 });
 el('chatCreateGroupForm').addEventListener('submit',async event=>{
-  event.preventDefault();if(!chatIsAdmin||!chatUser)return;
+  event.preventDefault();if(!chatCanCreateGroups()||!chatUser)return;
   const name=el('chatNewGroupName').value.trim();const people=chatV12SelectedCheckboxes('chatNewGroupMembers');
   if(name.length<3||people.length<1){chatMessage('Informe o nome e selecione ao menos um integrante.');return;}
   const button=el('chatCreateGroupButton');button.disabled=true;chatMessage('');
@@ -1382,7 +1396,7 @@ el('chatCreateGroupForm').addEventListener('submit',async event=>{
   finally{button.disabled=false;}
 });
 el('chatManageGroup').addEventListener('click',async()=>{
-  if(!chatIsAdmin||chatV12SelectedRoom?.tipo!=='grupo')return;
+  if(!chatCanManageGroup(chatV12SelectedRoom))return;
   chatMessage('');
   const {data,error}=await client.from('caarq_chat_participantes').select('user_id').eq('sala_id',chatV12SelectedRoom.id);
   if(error){chatMessage('Falha ao consultar participantes: '+error.message);return;}
@@ -1391,7 +1405,7 @@ el('chatManageGroup').addEventListener('click',async()=>{
 });
 el('chatCancelGroupMembers').addEventListener('click',()=>{el('chatGroupManagePanel').hidden=true;});
 el('chatSaveGroupMembers').addEventListener('click',async()=>{
-  if(!chatIsAdmin||chatV12SelectedRoom?.tipo!=='grupo')return;
+  if(!chatCanManageGroup(chatV12SelectedRoom))return;
   const id=chatV12SelectedRoom.id,ids=chatV12SelectedCheckboxes('chatGroupMemberChoices');
   if(!ids.length){chatMessage('O grupo precisa ter ao menos um integrante.');return;}
   const button=el('chatSaveGroupMembers');button.disabled=true;

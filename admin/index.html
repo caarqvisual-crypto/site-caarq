@@ -178,6 +178,7 @@ body{overflow-x:hidden}
                 <label><input id="newPermProjects" type="checkbox"> Projetos e calendário</label>
                 <label><input id="newPermAppearance" type="checkbox"> Aparência do site</label>
                 <label><input id="newPermLoca" type="checkbox"> Loja LOCA <small>(editor ainda em construção)</small></label>
+                <label><input id="newPermGroups" type="checkbox"> Pode criar grupos no chat <small>(e gerenciar seus próprios grupos)</small></label>
               </fieldset>
               <button id="createAccessButton" type="submit" class="primary-button">Criar conta e gerar senha provisória ↗</button>
             </form>
@@ -247,7 +248,7 @@ body{overflow-x:hidden}
                 <button id="chatReloadRoomMessages" type="button" class="chat-icon-button" title="Atualizar sala" aria-label="Atualizar mensagens">↻</button>
               </div>
               <div id="chatGroupManagePanel" class="chat-group-edit" hidden>
-                <p class="chat-helper">Apenas a Administração Geral pode alterar os participantes deste grupo.</p>
+                <p class="chat-helper">Somente a Administração Geral ou quem criou o grupo com autorização pode alterar participantes.</p>
                 <div id="chatGroupMemberChoices" class="chat-member-checks"></div>
                 <button id="chatSaveGroupMembers" type="button" class="chat-icon-button">Salvar integrantes</button>
                 <button id="chatCancelGroupMembers" type="button" class="chat-icon-button">Cancelar</button>
@@ -412,6 +413,6 @@ body{overflow-x:hidden}
       <footer class="content-footer">CAARQ BRÍGGIDA LOURENÇO <span>© 2026</span></footer>
     </main>
   </div>
-  <script type="module" src="script.js?v=12-chat"></script>
+  <script type="module" src="script.js?v=12-1-grupos"></script>
 </body>
 </html>
