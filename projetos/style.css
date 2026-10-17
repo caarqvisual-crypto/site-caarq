@@ -6,3 +6,14 @@
 .nav nav a[aria-current]{border-bottom:3px solid #ffd438;padding-bottom:6px;color:#40194f}
 @media(max-width:1140px){.nav{flex-wrap:wrap;padding:12px 0}.nav nav{width:100%;justify-content:center}}
 @media(max-width:760px){.nav nav{gap:8px 14px}}
+
+/* V6 — tema compartilhado com o site público */
+:root{--purple:#40194f;--purple-deep:#2b1236;--violet:#65417a;--yellow:#ffd02f}
+.topline,footer{background:var(--purple-deep)}
+.hero{background:var(--purple)}
+.brand,.nav nav a[aria-current],.section-heading h2,.card-body h3,.calendar-head h3,.event-row strong{color:var(--purple)}
+.admin-link,.hero-actions a:first-child{background:var(--yellow);color:var(--purple)}
+h1 em,h2 em,.cover span,.footer strong span{color:var(--yellow)}
+.cover{background:linear-gradient(135deg,var(--purple),var(--violet))}
+.calendar-day.has-event{background:color-mix(in srgb,var(--yellow) 30%,white)}
+.event-row{border-left-color:var(--yellow)}
