@@ -1,0 +1,18 @@
+# Site CAARQ — primeira versão visual
+
+Esta pasta contém uma primeira versão visual responsiva do site do CAARQ, com Montserrat e as cores roxo/amarelo.
+
+## Arquivos
+- `index.html`: estrutura das seções.
+- `style.css`: cores, tipografia, espaçamento e responsividade.
+- `script.js`: menu móvel e pequenas interações.
+- `assets/`: logo e fundos fornecidos.
+
+## Como testar no computador
+Abra `index.html` com dois cliques no navegador. Para publicar, envie os arquivos para o repositório GitHub Pages.
+
+## Importante
+- Os cartões da loja são exemplos visuais, não produtos reais.
+- Ainda não existe painel administrativo nesta versão.
+- Não coloque senhas ou chaves secretas no HTML/JavaScript público.
+- A próxima etapa é configurar autenticação e banco de dados com permissões seguras, para permitir a gestão de produtos e temas sem editar código.
