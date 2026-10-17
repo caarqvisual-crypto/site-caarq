@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
-<link href="style.css?v=6-aparencia" rel="stylesheet"/>
+<link href="style.css?v=17-organograma" rel="stylesheet"/>
 </head>
 <body>
 <a class="skip" href="#gestaoAtual">Pular para integrantes</a>
@@ -21,7 +21,7 @@
 <img alt="Símbolo oficial do CAARQ" height="78" onerror="this.onerror=null;this.src='logo-caarq.png'" src="../logo-caarq.png" width="78"/>
 <span><strong>CAARQ</strong><small>Bríggida Lourenço</small></span>
 </a>
-<nav aria-label="Navegação" class="nav-links"><a href="../">Início</a><a href="../#sobre">Quem somos</a><a aria-current="page" class="selected" href="./">Membros</a><a href="../projetos/">Projetos</a><a href="../projetos/#calendario">Calendário</a><a href="../#loja">Loja LOCA</a><a class="nav-back" href="../admin/">Área dos Membros ↗</a></nav>
+<nav aria-label="Navegação" class="nav-links"><a href="../">Início</a><a href="../#sobre">Quem somos</a><a aria-current="page" class="selected" href="./">Membros</a><a href="../projetos/">Projetos</a><a href="../projetos/#calendario">Calendário</a><a href="../loca/">Loja</a><a class="nav-back" href="../admin/">Área dos Membros ↗</a></nav>
 </div>
 </header>
 <main>
@@ -51,7 +51,7 @@
 </div>
 <div aria-live="polite" class="status loading" id="liveNotice" role="status"><span aria-hidden="true" class="mini-spinner"></span> Carregando equipe do CAARQ…</div>
 <div class="current-meta" hidden="" id="currentMeta"></div>
-<div aria-live="polite" class="people-grid" id="currentMembers"></div>
+<div aria-live="polite" class="organogram" id="currentMembers"></div>
 </div>
 </section>
 <section class="quote-band"><div class="wrap quote-grid"><span class="star">✳</span><p>Preservar o passado, <em>representar o presente</em> e abrir caminhos para o futuro.</p><span class="quote-end">CAARQ<br/>UEPB · V</span></div></section>
@@ -66,7 +66,11 @@
 </section>
 <section class="end-banner"><div class="wrap end-layout"><img alt="" height="105" onerror="this.onerror=null;this.src='logo-caarq.png'" src="../logo-caarq.png" width="105"/><div><p>FAÇA PARTE DESTA HISTÓRIA</p><h2>O CAARQ também é <em>seu.</em></h2></div><a href="../#contato">Fale com o CA ↗</a></div></section>
 </main>
+<dialog id="memberDialog" class="member-dialog" aria-labelledby="memberDialogName">
+  <button type="button" id="closeMemberDialog" class="member-dialog-close" aria-label="Fechar apresentação">×</button>
+  <div id="memberDialogContent"></div>
+</dialog>
 <footer class="footer"><div class="wrap foot-inner"><span>CAARQ <b>✳</b></span><small>Centro Acadêmico de Arquivologia · UEPB Campus V</small><a href="../">Voltar ao início ↑</a></div></footer>
-<script src="script.js?v=8-coordenacoes" type="module"></script>
+<script src="script.js?v=17-organograma" type="module"></script>
 </body>
 </html>

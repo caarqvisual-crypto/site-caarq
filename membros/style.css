@@ -26,3 +26,31 @@ body{margin:0;font-family:Montserrat,Arial,sans-serif;color:var(--plum);backgrou
 
 /* V8 — coordenação do integrante, campo editorial independente do cargo */
 .person-coordenacao{font-size:.78rem;color:var(--violet,var(--purple));font-weight:700;margin:4px 0 10px;line-height:1.45}
+
+/* V17 · Organograma editável e perfis com ampliação suave. */
+.organogram{display:flex;flex-direction:column;gap:23px}
+.organogram-group{--og-level:0;position:relative;margin-inline-start:calc(var(--og-level)*min(4vw,40px));padding-left:20px;border-left:2px solid var(--yellow);min-width:0}
+.og-group-header{position:relative;padding:19px 22px;margin-bottom:13px;background:#fff;border:1px solid var(--line);box-shadow:0 6px 22px #38144a0a}
+.og-group-header:before{content:'';position:absolute;left:-22px;top:30px;width:22px;border-top:2px solid var(--yellow)}
+.og-group-header h3{font-size:clamp(1.05rem,2vw,1.4rem);margin:0;color:var(--purple);letter-spacing:-.03em}
+.og-group-header p{color:var(--muted);font-size:.82rem;line-height:1.7;margin:8px 0 0}
+.og-empty{color:var(--muted);padding:10px;font-size:.82rem}
+.person-open{width:100%;height:100%;display:flex;flex-direction:column;background:transparent;border:0;padding:0;text-align:left;cursor:pointer;font:inherit;color:inherit}
+.person-open:focus-visible{outline:3px solid var(--yellow);outline-offset:-3px}
+.person-open .person-info{width:100%}
+.person-photo{transition:transform .28s ease}
+.person-open:hover .person-photo,.person-open:focus-visible .person-photo{transform:scale(1.045)}
+.person-more{font-weight:800;font-size:.7rem;letter-spacing:.02em;color:var(--violet)}
+.member-dialog{width:min(560px,calc(100% - 28px));max-height:min(90vh,850px);border:1px solid var(--line);border-radius:var(--site-radius,15px);padding:22px;background:var(--site-surface,#fff);box-shadow:0 30px 85px #210c3290;color:var(--site-text,var(--plum));overflow:auto}
+.member-dialog::backdrop{background:#18091bd1;backdrop-filter:blur(4px)}
+.member-dialog-close{position:sticky;top:0;float:right;z-index:2;border:0;background:var(--yellow);color:var(--purple);border-radius:50%;width:40px;height:40px;font-size:26px;cursor:pointer}
+.member-dialog-photo{display:block;max-height:350px;width:100%;object-fit:contain;border-radius:10px;background:#f5eff6;animation:softZoom .35s ease}
+.member-dialog-placeholder{width:110px;height:110px;display:grid;place-items:center;background:var(--purple);border-radius:50%;color:var(--yellow);font-size:3.2rem;font-weight:800}
+.member-dialog h2{font-size:clamp(1.5rem,4vw,2rem);margin:20px 0 5px;color:var(--purple);letter-spacing:-.04em}
+.member-dialog h3{font-size:1rem;color:var(--purple);margin:20px 0 7px}
+.member-dialog-role,.member-dialog-sector{color:var(--violet);font-weight:700;margin:5px 0}
+.member-dialog-copy{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.85;font-size:.9rem}
+@keyframes softZoom{from{transform:scale(.97);opacity:.85}to{transform:scale(1);opacity:1}}
+.history-body .organogram{margin-top:14px}
+@media(max-width:650px){.organogram-group{margin-inline-start:0;padding-left:12px}.og-group-header:before{left:-14px;width:14px}.member-dialog{padding:17px}.member-dialog-photo{max-height:285px}}
+@media(prefers-reduced-motion:reduce){.person-photo,.member-dialog-photo{transition:none;animation:none}}
