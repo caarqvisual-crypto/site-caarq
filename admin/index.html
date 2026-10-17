@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1">
+  <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
   <div class="layout">
@@ -51,19 +51,54 @@
         <div class="mini-icon">!</div><p class="kicker">ACESSO NÃO LIBERADO</p><h2>Conta sem <em>permissão.</em></h2><p class="subtext" id="deniedText">Sua conta ainda não está autorizada a acessar o CAARQ Admin. Entre em contato com a administração geral.</p><button id="deniedLogout" class="primary-button" type="button">Sair da conta <span>↗</span></button>
       </section>
       <section id="dashboardView" class="dashboard" hidden>
-        <div class="dashboard-head"><div><p class="kicker">GESTÃO DO CENTRO ACADÊMICO</p><h2>Painel <em>CAARQ.</em></h2><p class="subtext">Seu acesso está ativo. Os módulos de edição serão liberados nas próximas etapas.</p></div><span class="role-tag" id="roleTag">Membro autorizado</span></div>
+        <div class="dashboard-head"><div><p class="kicker">GESTÃO DO CENTRO ACADÊMICO</p><h2>Painel <em>CAARQ.</em></h2><p class="subtext">Seu acesso está ativo. A gestão dos membros da página pública já pode ser utilizada.</p></div><span class="role-tag" id="roleTag">Membro autorizado</span></div>
         <div class="account-strip"><div><span class="strip-label">CONTA CONECTADA</span><strong id="accountEmail"></strong></div><button id="logoutButton" type="button" class="logout-button">Sair da conta ↗</button></div>
         <div class="tiles">
           <article class="tile"><div class="tile-icon">▣</div><h3>Loja LOCA</h3><p>Produtos, valores, estoque e imagens</p><span>Em preparação</span></article>
           <article class="tile"><div class="tile-icon">✳</div><h3>Identidade visual</h3><p>Banners, cores e logotipo</p><span>Em preparação</span></article>
           <article class="tile"><div class="tile-icon">▤</div><h3>Projetos e notícias</h3><p>Publicações, eventos e textos</p><span>Em preparação</span></article>
-          <article class="tile"><div class="tile-icon">♧</div><h3>Membros da gestão</h3><p>Perfis e permissões de acesso</p><span>Em preparação</span></article>
+          <article class="tile tile-ready" id="membersTile"><div class="tile-icon">♧</div><h3>Equipe do site público</h3><p>Gestão atual, integrantes e gestões anteriores</p><button id="openMembers" type="button" class="tile-action">Abrir editor de membros →</button></article>
         </div>
+        <section id="membersManager" class="members-manager" hidden aria-labelledby="membersTitle">
+          <div class="manager-top"><div><p class="kicker">EDIÇÃO DO SITE PÚBLICO</p><h3 id="membersTitle">Membros e gestões</h3><p>Cadastre a gestão, depois inclua seus integrantes. Dados não publicados ficam visíveis somente a editores autorizados.</p></div><button type="button" id="closeMembers" class="logout-button">← Voltar ao painel</button></div>
+          <div id="memberFeedback" role="status" aria-live="polite" class="message" hidden></div>
+          <div class="manager-block">
+            <div class="block-head"><h4>1. Gestões do CAARQ</h4><p>Gestões anteriores permanecem no histórico.</p></div>
+            <form id="gestaoForm" class="edit-form">
+              <input id="gestaoId" type="hidden">
+              <div class="form-grid"><div><label for="gestaoNome">Nome da gestão *</label><input id="gestaoNome" type="text" maxlength="120" required placeholder="Ex.: Gestão 2026–2027"></div>
+              <div><label for="gestaoInicio">Ano de início</label><input id="gestaoInicio" type="number" min="1950" max="2200" inputmode="numeric" placeholder="2026"></div>
+              <div><label for="gestaoFim">Ano de término</label><input id="gestaoFim" type="number" min="1950" max="2200" inputmode="numeric" placeholder="2027"></div></div>
+              <div class="checks"><label class="check-label"><input id="gestaoAtual" type="checkbox"> Marcar como gestão atual</label><label class="check-label"><input id="gestaoPublicada" type="checkbox"> Exibir no site público</label></div>
+              <div class="form-actions"><button type="submit" id="saveGestao" class="primary-button">Salvar gestão ↗</button><button type="button" id="cancelGestao" class="logout-button">Limpar formulário</button></div>
+            </form>
+            <div id="gestoesList" class="records-list"><p class="empty-records">Carregando gestões…</p></div>
+          </div>
+          <div class="manager-block">
+            <div class="block-head"><h4>2. Integrantes de cada gestão</h4><p>Cadastre nome, cargo e foto. Para fotos, nesta versão use um link público da imagem; depois adicionaremos envio direto do computador.</p></div>
+            <form id="membroForm" class="edit-form">
+              <input id="membroId" type="hidden">
+              <div class="form-grid">
+                <div><label for="membroGestao">Gestão *</label><select id="membroGestao" required><option value="">Selecione uma gestão</option></select></div>
+                <div><label for="membroNome">Nome do integrante *</label><input id="membroNome" required maxlength="160" placeholder="Nome completo"></div>
+                <div><label for="membroCargo">Cargo *</label><input id="membroCargo" required maxlength="120" placeholder="Ex.: Coordenação de Comunicação"></div>
+                <div><label for="membroOrdem">Ordem de exibição</label><input id="membroOrdem" type="number" min="0" max="9999" value="0"></div>
+                <div class="form-full"><label for="membroBio">Apresentação (opcional)</label><textarea id="membroBio" rows="3" maxlength="1000" placeholder="Breve apresentação"></textarea></div>
+                <div class="form-full"><label for="membroFoto">Link público da foto (opcional)</label><input id="membroFoto" type="url" inputmode="url" placeholder="https://exemplo.com/foto.jpg"></div>
+              </div>
+              <div class="checks"><label class="check-label"><input id="membroPublicado" type="checkbox"> Exibir este integrante no site público</label></div>
+              <div class="form-actions"><button type="submit" class="primary-button" id="saveMembro">Salvar integrante ↗</button><button type="button" id="cancelMembro" class="logout-button">Limpar formulário</button></div>
+            </form>
+            <div class="member-filter"><label for="filterGestao">Visualizar integrantes</label><select id="filterGestao"><option value="">Todas as gestões</option></select></div>
+            <div id="membrosList" class="records-list"><p class="empty-records">Carregando integrantes…</p></div>
+          </div>
+          <p class="bottom-note">🔐 Salvar uma gestão ou integrante não dá acesso ao painel administrativo. Contas e permissões de login continuam separadas.</p>
+        </section>
         <p class="bottom-note">🔐 As permissões de edição serão verificadas no banco de dados. Estar conectado não significa poder modificar informações.</p>
       </section>
       <footer class="content-footer">CAARQ BRÍGGIDA LOURENÇO <span>© 2026</span></footer>
     </main>
   </div>
-  <script type="module" src="script.js?v=1"></script>
+  <script type="module" src="script.js?v=2"></script>
 </body>
 </html>

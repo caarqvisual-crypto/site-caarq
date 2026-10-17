@@ -20,6 +20,7 @@ function notice(id, message, success = false) {
 const roleNames = { admin: 'Administração geral', editor: 'Editoria', loja: 'Gestão da LOCA' };
 let latestSession = null;
 let isSettingPassword = false;
+let currentRole = null;
 
 async function checkAccess() {
   if (isSettingPassword) return;
@@ -41,7 +42,10 @@ async function checkAccess() {
     el('deniedText').textContent = 'Seu login existe, mas ainda não foi autorizado para administrar o CAARQ. Peça à administração geral para liberar seu acesso.';
     return;
   }
+  currentRole = membership.role;
   el('roleTag').textContent = roleNames[membership.role];
+  el('membersTile').hidden = !['admin', 'editor'].includes(currentRole);
+  if (['admin', 'editor'].includes(currentRole)) await loadData();
   el('accountEmail').textContent = user.email || 'Membro autorizado';
   show('dashboardView');
 }
@@ -89,6 +93,8 @@ el('passwordForm').addEventListener('submit', async event => {
 });
 
 async function logout() {
+  currentRole = null;
+  el('membersManager').hidden = true;
   show('loading');
   await client.auth.signOut();
   show('loginView');
@@ -114,4 +120,187 @@ try {
 } catch (err) {
   show('loginView');
   notice('loginMessage', 'Não foi possível iniciar a conexão com o Supabase. Verifique sua internet ou tente novamente mais tarde.');
+}
+
+
+// Editor de equipe pública: mudanças gravadas exclusivamente no Supabase,
+// com as políticas RLS como barreira real de autorização.
+let gestoes = [];
+let membros = [];
+let recordsLoaded = false;
+const isEditor = () => currentRole === 'admin' || currentRole === 'editor';
+function feedback(message, success=false) {
+  notice('memberFeedback', message, success);
+}
+function node(tag, className, value) {
+  const n = document.createElement(tag);
+  if (className) n.className = className;
+  if (value !== undefined) n.textContent = String(value);
+  return n;
+}
+function action(label, fn) {
+  const b = node('button', '', label);
+  b.type = 'button';
+  b.addEventListener('click', fn);
+  return b;
+}
+function badge(label, extra='') {return node('span','record-tag '+extra,label);}
+function formatRange(g) {
+  const a = g.ano_inicio ?? '—';
+  const b = g.ano_fim ?? (g.atual ? 'presente' : '—');
+  return `${a}–${b}`;
+}
+function selectOptions(select, items, initialLabel, withAll=false) {
+  const saved = select.value;
+  select.replaceChildren();
+  const first = document.createElement('option');
+  first.value = '';
+  first.textContent = initialLabel;
+  select.append(first);
+  for (const g of items) {
+    const opt = document.createElement('option');
+    opt.value = g.id;
+    opt.textContent = `${g.nome} (${formatRange(g)})`;
+    select.append(opt);
+  }
+  if (items.some(g => g.id === saved)) select.value = saved;
+}
+async function loadData() {
+  if (!isEditor()) return;
+  feedback('');
+  try {
+    const [g,m] = await Promise.all([
+      client.from('caarq_gestoes').select('id,nome,ano_inicio,ano_fim,atual,publicada,criado_em').order('ano_inicio',{ascending:false}),
+      client.from('caarq_membros').select('id,gestao_id,nome,cargo,apresentacao,foto_url,ordem,publicado,criado_em').order('ordem',{ascending:true}).order('nome',{ascending:true})
+    ]);
+    if (g.error) throw g.error;
+    if (m.error) throw m.error;
+    gestoes = g.data || [];
+    membros = m.data || [];
+    recordsLoaded = true;
+    renderGestaoList();
+    selectOptions(el('membroGestao'),gestoes,'Selecione uma gestão');
+    selectOptions(el('filterGestao'),gestoes,'Todas as gestões');
+    renderMembroList();
+  } catch(error) {
+    feedback('Não foi possível carregar as informações. Confira as permissões das tabelas no Supabase.');
+  }
+}
+function renderGestaoList() {
+  const list = el('gestoesList'); list.replaceChildren();
+  if (!gestoes.length) { list.append(node('p','empty-records','Ainda não há gestões cadastradas. Preencha o formulário acima para criar a primeira.')); return; }
+  for (const g of gestoes) {
+    const item=node('div','record'); const desc=node('div','record-detail');
+    desc.append(node('strong','record-title',g.nome),node('div','record-sub',formatRange(g)));
+    const tags=node('div','record-tags');
+    if (g.atual) tags.append(badge('Gestão atual','current'));
+    tags.append(badge(g.publicada?'Visível no site':'Não publicada',g.publicada?'published':''));
+    desc.append(tags);
+    const commands=node('div','record-actions');
+    commands.append(action('Editar',()=>editGestao(g)),action('Ver membros',()=>{
+      el('filterGestao').value=g.id;renderMembroList();el('membroForm').scrollIntoView({behavior:'smooth',block:'start'});
+    }));
+    item.append(desc,commands);list.append(item);
+  }
+}
+function renderMembroList() {
+  const list=el('membrosList');list.replaceChildren();
+  const chosen=el('filterGestao').value;
+  const shown=membros.filter(m=>!chosen||m.gestao_id===chosen);
+  if (!shown.length){list.append(node('p','empty-records','Nenhum integrante cadastrado para esta seleção.'));return;}
+  for(const m of shown){
+    const g=gestoes.find(x=>x.id===m.gestao_id);
+    const item=node('div','record member-record');
+    let photo;
+    if(m.foto_url && /^https:\/\//i.test(m.foto_url)){
+      photo=document.createElement('img');photo.className='member-photo';photo.alt='';photo.loading='lazy';photo.referrerPolicy='no-referrer';photo.src=m.foto_url;
+    }else{photo=node('div','member-photo member-photo-placeholder',(m.nome||'?').slice(0,1).toUpperCase());}
+    const desc=node('div','record-detail');
+    desc.append(node('strong','record-title',m.nome),node('div','record-sub',`${m.cargo} · ${g?.nome||'Gestão não identificada'}`));
+    const tags=node('div','record-tags');tags.append(badge(m.publicado?'Exibir no site':'Oculto',m.publicado?'published':''));desc.append(tags);
+    const commands=node('div','record-actions');
+    commands.append(action('Editar',()=>editMembro(m)),action(m.publicado?'Ocultar':'Publicar',()=>toggleMembro(m)));
+    item.append(photo,desc,commands);list.append(item);
+  }
+}
+function editGestao(g){
+  el('gestaoId').value=g.id;
+  el('gestaoNome').value=g.nome;
+  el('gestaoInicio').value=g.ano_inicio??'';
+  el('gestaoFim').value=g.ano_fim??'';
+  el('gestaoAtual').checked=Boolean(g.atual);
+  el('gestaoPublicada').checked=Boolean(g.publicada);
+  el('gestaoForm').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function editMembro(m){
+  el('membroId').value=m.id;
+  el('membroGestao').value=m.gestao_id;
+  el('membroNome').value=m.nome;
+  el('membroCargo').value=m.cargo;
+  el('membroBio').value=m.apresentacao||'';
+  el('membroFoto').value=m.foto_url||'';
+  el('membroOrdem').value=m.ordem??0;
+  el('membroPublicado').checked=Boolean(m.publicado);
+  el('membroForm').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function clearGestao(){el('gestaoForm').reset();el('gestaoId').value='';}
+function clearMembro(){el('membroForm').reset();el('membroId').value='';}
+el('openMembers').addEventListener('click',async()=>{
+  if(!isEditor())return;
+  el('membersManager').hidden=false;
+  if(!recordsLoaded)await loadData();
+  el('membersManager').scrollIntoView({behavior:'smooth',block:'start'});
+});
+el('closeMembers').addEventListener('click',()=>{
+  el('membersManager').hidden=true;el('dashboardView').scrollIntoView({behavior:'smooth',block:'start'});
+});
+el('cancelGestao').addEventListener('click',clearGestao);
+el('cancelMembro').addEventListener('click',clearMembro);
+el('filterGestao').addEventListener('change',renderMembroList);
+el('gestaoForm').addEventListener('submit',async event=>{
+  event.preventDefault();if(!isEditor())return;
+  const id=el('gestaoId').value;
+  const inicio=el('gestaoInicio').value;
+  const fim=el('gestaoFim').value;
+  if(inicio && fim && Number(fim)<Number(inicio)){feedback('O ano de término não pode ser anterior ao de início.');return;}
+  const changes={nome:el('gestaoNome').value.trim(),ano_inicio:inicio?Number(inicio):null,ano_fim:fim?Number(fim):null,atual:el('gestaoAtual').checked,publicada:el('gestaoPublicada').checked};
+  if(!changes.nome){feedback('Preencha o nome da gestão.');return;}
+  const btn=el('saveGestao');btn.disabled=true;
+  try{
+    // Primeiro salva a gestão; em seguida desmarca a anterior se for nova atual.
+    const q=id?client.from('caarq_gestoes').update(changes).eq('id',id):client.from('caarq_gestoes').insert(changes);
+    const {error}=await q;
+    if(error)throw error;
+    if(changes.atual){
+      const {data:newCurrent,error:lookupError}=await client.from('caarq_gestoes').select('id').eq('nome',changes.nome).eq('atual',true).order('criado_em',{ascending:false}).limit(1);
+      if(lookupError)throw lookupError;
+      const ownId=id||newCurrent?.[0]?.id;
+      if(ownId){const {error:clearError}=await client.from('caarq_gestoes').update({atual:false}).neq('id',ownId).eq('atual',true);if(clearError)throw clearError;}
+    }
+    clearGestao();await loadData();feedback('Gestão salva! Você pode cadastrar os integrantes abaixo.',true);
+  }catch(error){feedback('Não foi possível salvar a gestão. Confira a conexão e as permissões.');}
+  finally{btn.disabled=false;}
+});
+el('membroForm').addEventListener('submit',async event=>{
+  event.preventDefault();if(!isEditor())return;
+  const id=el('membroId').value;
+  const url=el('membroFoto').value.trim();
+  if(url && !/^https:\/\//i.test(url)){feedback('Use um link de foto que comece com https://.');return;}
+  const changes={gestao_id:el('membroGestao').value,nome:el('membroNome').value.trim(),cargo:el('membroCargo').value.trim(),apresentacao:el('membroBio').value.trim()||null,foto_url:url||null,ordem:Number(el('membroOrdem').value)||0,publicado:el('membroPublicado').checked};
+  if(!changes.gestao_id||!changes.nome||!changes.cargo){feedback('Selecione a gestão e informe nome e cargo.');return;}
+  const btn=el('saveMembro');btn.disabled=true;
+  try{
+    const q=id?client.from('caarq_membros').update(changes).eq('id',id):client.from('caarq_membros').insert(changes);
+    const {error}=await q;if(error)throw error;
+    clearMembro();await loadData();feedback('Integrante salvo! O perfil fica disponível para a futura página pública, conforme o status de publicação.',true);
+  }catch(error){feedback('Não foi possível salvar o integrante. Confira os campos e as permissões do Supabase.');}
+  finally{btn.disabled=false;}
+});
+async function toggleMembro(m){
+  if(!isEditor())return;
+  try{
+    const {error}=await client.from('caarq_membros').update({publicado:!m.publicado}).eq('id',m.id);
+    if(error)throw error;
+    await loadData();feedback(m.publicado?'Integrante ocultado. O cadastro foi preservado.':'Integrante marcado para publicação.',true);
+  }catch(err){feedback('Não foi possível alterar a visibilidade deste integrante.');}
 }
