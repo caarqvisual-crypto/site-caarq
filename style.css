@@ -251,3 +251,24 @@ h3 { font-size:1.3rem; margin-bottom:12px; }
  .tribute-closing p{font-size:.86rem}
  .tribute-sources{font-size:.7rem}
 }
+
+/* V8 — Ouvidoria integrada sem armazenar relatos no GitHub/Supabase */
+.ombudsman{background:#faf6ed;position:relative;overflow:hidden}
+.ombudsman-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.85fr);gap:clamp(30px,5vw,80px);align-items:center}
+.ombudsman-intro h2{font-size:clamp(2.5rem,4.5vw,4.3rem);max-width:590px}
+.ombudsman-intro h2 span{color:var(--purple-mid)}
+.ombudsman-intro>p:not(.kicker){color:var(--muted);font-size:.96rem;line-height:1.85;max-width:570px}
+.ombudsman-button{margin-top:17px;text-align:center}
+.ombudsman-intro .ombudsman-hint{font-size:.75rem!important;margin-top:16px;color:var(--muted)}
+.ombudsman-info{display:grid;gap:15px}
+.ombudsman-card{padding:30px;background:var(--purple);color:white;border-radius:6px;box-shadow:0 12px 35px #40194f13}
+.ombudsman-card h3{color:white;margin:20px 0 14px;letter-spacing:-.025em;font-size:1.5rem}
+.ombudsman-card p{font-size:.86rem;line-height:1.85;color:#e9dfee;margin:0 0 12px}
+.ombudsman-card p:last-child{margin-bottom:0}
+.ombudsman-num{font-size:.68rem;font-weight:800;letter-spacing:.1em;color:var(--yellow)}
+.ombudsman-card-muted{background:#fff;border:1px solid var(--line);box-shadow:none;color:var(--ink)}
+.ombudsman-card-muted h3{color:var(--purple)}
+.ombudsman-card-muted p{color:var(--muted)}
+.ombudsman-card-muted .ombudsman-num{color:var(--purple-mid)}
+@media(max-width:800px){.ombudsman-layout{grid-template-columns:1fr}.ombudsman-info{grid-template-columns:1fr 1fr;gap:12px}.ombudsman-card{padding:22px}}
+@media(max-width:570px){.ombudsman-layout{gap:25px}.ombudsman-info{grid-template-columns:1fr}.ombudsman-card{padding:23px}.ombudsman-intro h2{font-size:clamp(2.1rem,9vw,3rem)}}
