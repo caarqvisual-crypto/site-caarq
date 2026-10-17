@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#40194f">
+  <meta name="description" content="Notícias, homenagens, oportunidades e comunicados do Centro Acadêmico de Arquivologia Bríggida Lourenço — UEPB Campus V.">
+  <title>Novidades e Memórias | CAARQ Bríggida Lourenço</title>
+  <link rel="icon" href="../logo-caarq.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=18-final">
+</head>
+<body>
+<div class="tiny-bar">CENTRO ACADÊMICO DE ARQUIVOLOGIA · UEPB CAMPUS V <span>✳</span> MEMÓRIA EM MOVIMENTO</div>
+<header class="header"><div class="wrap nav">
+  <a class="brand" href="../" aria-label="CAARQ — página inicial"><img src="../logo-caarq.png" alt="Logo do CAARQ"><span><strong>CAARQ</strong><small>BRÍGGIDA LOURENÇO</small></span></a>
+  <button class="hamburger" type="button" id="navButton" aria-expanded="false" aria-controls="navLinks">☰ Menu</button>
+  <nav id="navLinks" aria-label="Navegação principal"><a href="../">Início</a><a href="../membros/">Membros</a><a href="../projetos/">Projetos</a><a href="../loca/">Loja</a><a class="current" href="./" aria-current="page">Novidades</a><a class="admin-link" href="../admin/">Área dos membros ↗</a></nav>
+</div></header>
+<main>
+  <section class="hero" id="hero"><img id="blogHeroImage" class="blog-hero-image" alt="" hidden><div class="wrap hero-content"><div>
+    <div class="eyebrow"><span class="yellow-line"></span> <span id="blogHeroKicker">PORTAL DE NOTÍCIAS E MEMÓRIAS</span></div>
+    <h1><span id="blogHeroStart">Histórias que</span><br><em id="blogHeroHighlight">merecem ficar.</em></h1>
+    <p id="blogHeroDescription">Notícias, conquistas, comunicados e homenagens. Um lugar para contar o que acontece na nossa comunidade — e preservar o que faz parte dela.</p>
+    <a class="hero-button" href="#publicacoes">Explorar publicações <span>↓</span></a>
+  </div><div class="hero-visual" aria-hidden="true"><div class="hero-paper"><span>CAARQ · ARQUIVOLOGIA</span><strong>NOSSA<br>HISTÓRIA<br>CONTINUA.</strong><span>MEMÓRIA · ACESSO · PARTICIPAÇÃO</span></div><div class="hero-seal">✳</div></div></div></section>
+  <div class="wrap content-area" id="publicacoes">
+    <div id="listing" aria-live="polite">
+      <div class="section-top"><div><p class="eyebrow dark">PUBLICAÇÕES DO CAARQ</p><h2>O que está <em>acontecendo?</em></h2></div><span class="counter" id="postCount"></span></div>
+      <section id="featuredSection" hidden aria-labelledby="featuredTitle"><div class="block-label"><h3 id="featuredTitle">Em destaque <span>✳</span></h3></div><div id="featuredCard"></div></section>
+      <div class="feed-heading"><h3>Todas as publicações</h3><p>Encontre notícias, homenagens, editais, atividades e tudo que merece ser compartilhado.</p></div>
+      <div class="filters"><label class="search-wrap"><span aria-hidden="true">⌕</span><span class="sr-only">Buscar notícias</span><input id="search" type="search" placeholder="Buscar por título ou assunto..."></label><label class="category-wrap"><span class="sr-only">Filtrar por categoria</span><select id="category"><option value="">Todas as categorias</option></select></label></div>
+      <div id="status" class="status" role="status">Carregando publicações…</div>
+      <div id="grid" class="post-grid"></div>
+      <button id="more" class="more" type="button" hidden>Mostrar mais publicações ↓</button>
+    </div>
+    <article id="article" class="article" hidden aria-labelledby="articleTitle"><a class="back" href="./">← Voltar às novidades</a><div class="article-eyebrow" id="articleMeta"></div><h1 id="articleTitle"></h1><p class="article-lead" id="articleLead"></p><figure class="article-cover" id="articleCover" hidden><img id="articleImage" alt=""><figcaption id="articleImageCaption"></figcaption></figure><div class="article-body" id="articleBody"></div><div class="article-gallery" id="articleGallery" hidden><h2>Galeria de imagens</h2><div id="articlePhotos" class="photo-grid"></div></div><div id="articleAction" class="article-action" hidden></div><div class="article-bottom"><p>Uma publicação do Centro Acadêmico de Arquivologia — UEPB Campus V.</p><button id="share" type="button">Compartilhar esta publicação ↗</button></div><div id="articleError" role="status" class="status" hidden></div></article>
+  </div>
+</main>
+<footer><div class="wrap footer-inner"><div><strong>CAARQ <span>✳</span></strong><p>Bríggida Lourenço · Arquivologia UEPB</p></div><p>Porque preservar também é compartilhar.</p><a href="../">Voltar ao site principal ↗</a></div></footer>
+<dialog id="lightbox" class="lightbox" aria-label="Fotografia ampliada"><form method="dialog"><button class="lightbox-close" aria-label="Fechar imagem" type="submit">✕</button></form><img alt="" id="lightboxImage"><p id="lightboxCaption"></p></dialog>
+<script type="module" src="script.js?v=18-final"></script>
+</body>
+</html>
