@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#361348">
+  <meta name="robots" content="noindex,nofollow">
+  <title>CAARQ Admin — Acesso restrito</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=1">
+</head>
+<body>
+  <div class="layout">
+    <aside class="intro-panel">
+      <div class="top-brand"><span class="brand-icon">C<span>✳</span></span><span>CAARQ <small>Bríggida Lourenço</small></span></div>
+      <div class="intro-main">
+        <p class="eyebrow"><span class="eyebrow-line"></span> ESPAÇO DA GESTÃO</p>
+        <h1>Nosso CA.<br><em>Nossa</em><br>história.</h1>
+        <p>Um espaço reservado para cuidar de cada detalhe do Centro Acadêmico de Arquivologia da UEPB.</p>
+        <div class="symbol-board" aria-hidden="true"><div class="paper paper-left"><span>ARQUIVO · 2026</span><b>UEPB</b><i>✳</i></div><div class="paper paper-right"><span>GESTÃO<br>PARTICIPATIVA</span><strong>CAARQ</strong><small>MEMÓRIA EM MOVIMENTO</small></div><div class="badge-dot">✳</div></div>
+      </div>
+      <div class="panel-footer"><span>UEPB · CAMPUS V</span><span>ARQUIVOLOGIA ↗</span></div>
+    </aside>
+    <main class="content-panel">
+      <header class="topline"><a href="../">← Voltar ao site</a><span class="lock-caption">◈ ACESSO RESTRITO</span></header>
+      <section id="loading" class="auth-panel state-panel" aria-live="polite"><span class="spinner"></span><p>Preparando o acesso seguro…</p></section>
+      <section id="loginView" class="auth-panel" hidden>
+        <div class="mini-icon" aria-hidden="true">⌑</div>
+        <p class="kicker">PAINEL ADMINISTRATIVO</p>
+        <h2>Bem-vinda<br>à gestão <em>CAARQ.</em></h2>
+        <p class="subtext">Entre com sua conta autorizada para acessar o painel de administração.</p>
+        <form id="loginForm" novalidate>
+          <label for="email">E-mail de acesso</label>
+          <input id="email" type="email" autocomplete="username" inputmode="email" required placeholder="seuemail@exemplo.com">
+          <label for="password">Senha</label>
+          <div class="password-field"><input id="password" type="password" autocomplete="current-password" minlength="6" required placeholder="Digite sua senha"><button type="button" class="show-password" id="togglePassword" aria-label="Mostrar senha">Mostrar</button></div>
+          <div id="loginMessage" role="alert" class="message" hidden></div>
+          <button id="loginButton" type="submit" class="primary-button">Entrar no painel <span>↗</span></button>
+        </form>
+        <p class="helptext">Não tem acesso? Peça à administração geral do Centro Acadêmico. Não há cadastro público.</p>
+      </section>
+      <section id="passwordView" class="auth-panel" hidden>
+        <p class="kicker">CONVITE PARA A GESTÃO</p>
+        <h2>Crie sua <em>senha.</em></h2>
+        <p class="subtext">Defina uma senha para concluir a ativação da sua conta.</p>
+        <form id="passwordForm"><label for="newPassword">Nova senha</label><input id="newPassword" type="password" autocomplete="new-password" minlength="8" required placeholder="Mínimo de 8 caracteres"><div id="passwordMessage" role="alert" class="message" hidden></div><button id="savePasswordButton" type="submit" class="primary-button">Salvar minha senha <span>↗</span></button></form>
+      </section>
+      <section id="deniedView" class="auth-panel" hidden>
+        <div class="mini-icon">!</div><p class="kicker">ACESSO NÃO LIBERADO</p><h2>Conta sem <em>permissão.</em></h2><p class="subtext" id="deniedText">Sua conta ainda não está autorizada a acessar o CAARQ Admin. Entre em contato com a administração geral.</p><button id="deniedLogout" class="primary-button" type="button">Sair da conta <span>↗</span></button>
+      </section>
+      <section id="dashboardView" class="dashboard" hidden>
+        <div class="dashboard-head"><div><p class="kicker">GESTÃO DO CENTRO ACADÊMICO</p><h2>Painel <em>CAARQ.</em></h2><p class="subtext">Seu acesso está ativo. Os módulos de edição serão liberados nas próximas etapas.</p></div><span class="role-tag" id="roleTag">Membro autorizado</span></div>
+        <div class="account-strip"><div><span class="strip-label">CONTA CONECTADA</span><strong id="accountEmail"></strong></div><button id="logoutButton" type="button" class="logout-button">Sair da conta ↗</button></div>
+        <div class="tiles">
+          <article class="tile"><div class="tile-icon">▣</div><h3>Loja LOCA</h3><p>Produtos, valores, estoque e imagens</p><span>Em preparação</span></article>
+          <article class="tile"><div class="tile-icon">✳</div><h3>Identidade visual</h3><p>Banners, cores e logotipo</p><span>Em preparação</span></article>
+          <article class="tile"><div class="tile-icon">▤</div><h3>Projetos e notícias</h3><p>Publicações, eventos e textos</p><span>Em preparação</span></article>
+          <article class="tile"><div class="tile-icon">♧</div><h3>Membros da gestão</h3><p>Perfis e permissões de acesso</p><span>Em preparação</span></article>
+        </div>
+        <p class="bottom-note">🔐 As permissões de edição serão verificadas no banco de dados. Estar conectado não significa poder modificar informações.</p>
+      </section>
+      <footer class="content-footer">CAARQ BRÍGGIDA LOURENÇO <span>© 2026</span></footer>
+    </main>
+  </div>
+  <script type="module" src="script.js?v=1"></script>
+</body>
+</html>
