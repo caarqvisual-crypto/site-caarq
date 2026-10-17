@@ -45,6 +45,7 @@ async function checkAccess() {
   currentRole = membership.role;
   el('roleTag').textContent = roleNames[membership.role];
   el('membersTile').hidden = !['admin', 'editor'].includes(currentRole);
+  el('appearanceTile').hidden = currentRole !== 'admin';
   el('projectsTile').hidden = !['admin', 'editor'].includes(currentRole);
   if (['admin', 'editor'].includes(currentRole)) await loadData();
   el('accountEmail').textContent = user.email || 'Membro autorizado';
@@ -97,6 +98,7 @@ async function logout() {
   currentRole = null;
   el('membersManager').hidden = true;
   el('projectsManager').hidden = true;
+  el('appearanceManager').hidden = true;
   show('loading');
   await client.auth.signOut();
   show('loginView');
@@ -114,15 +116,6 @@ client.auth.onAuthStateChange((event, session) => {
   }
 });
 
-try {
-  const inviteInUrl = location.hash.includes('type=invite') || location.search.includes('type=invite') || location.hash.includes('type=recovery') || location.search.includes('type=recovery');
-  const { data: { session } } = await client.auth.getSession();
-  if (session && inviteInUrl) { isSettingPassword = true; show('passwordView'); }
-  else await checkAccess();
-} catch (err) {
-  show('loginView');
-  notice('loginMessage', 'Não foi possível iniciar a conexão com o Supabase. Verifique sua internet ou tente novamente mais tarde.');
-}
 
 
 // Editor de equipe pública: mudanças gravadas exclusivamente no Supabase,
@@ -250,6 +243,8 @@ function clearMembro(){el('membroForm').reset();el('membroId').value='';}
 el('openMembers').addEventListener('click',async()=>{
   if(!isEditor())return;
   el('membersManager').hidden=false;
+  el('appearanceManager').hidden=true;
+  el('projectsManager').hidden=true;
   if(!recordsLoaded)await loadData();
   el('membersManager').scrollIntoView({behavior:'smooth',block:'start'});
 });
@@ -340,7 +335,7 @@ function activityRender(){const host=el('activitiesList');host.replaceChildren()
   }
 }
 async function loadActivities(){if(!isEditor())return;try{const {data,error}=await client.from('caarq_atividades').select('*').order('criado_em',{ascending:false});if(error)throw error;activities=data||[];activitiesLoaded=true;activityRender();}catch(error){console.error('Erro ao carregar atividades',error);activityFeedback('Não foi possível carregar atividades. Confirme se o SQL de projetos foi executado no Supabase.');}}
-el('openProjects').addEventListener('click',async()=>{if(!isEditor())return;el('membersManager').hidden=true;el('projectsManager').hidden=false;if(!activitiesLoaded)await loadActivities();el('projectsManager').scrollIntoView({behavior:'smooth',block:'start'});});
+el('openProjects').addEventListener('click',async()=>{if(!isEditor())return;el('membersManager').hidden=true;el('appearanceManager').hidden=true;el('projectsManager').hidden=false;if(!activitiesLoaded)await loadActivities();el('projectsManager').scrollIntoView({behavior:'smooth',block:'start'});});
 el('closeProjects').addEventListener('click',()=>{el('projectsManager').hidden=true;el('dashboardView').scrollIntoView({behavior:'smooth',block:'start'});});
 el('clearActivity').addEventListener('click',activityFormClear);
 el('activityFilter').addEventListener('change',activityRender);
@@ -368,3 +363,132 @@ el('projectForm').addEventListener('submit',async event=>{
  }catch(error){console.error('Erro ao salvar atividade',error);activityFeedback('Não foi possível salvar. Confira os dados e as permissões do Supabase.');}
  finally{save.disabled=false;save.textContent='Salvar atividade ↗';}
 });
+
+
+// V6 — Gerenciamento da aparência. Somente a Administração Geral tem permissão
+// de gravar esta tabela; a RLS do Supabase garante isso também no servidor.
+const appearanceDefaults={
+ primary_color:'#40194f',accent_color:'#ffd02f',hero_kicker:'Memória · Acesso · Participação',
+ hero_first:'Guardar memórias.',hero_highlight:'Transformar',hero_last:'futuros.',
+ hero_description:'Somos o Centro Acadêmico de Arquivologia da UEPB, Campus V. Um espaço de representação estudantil, diálogo e construção coletiva.',
+ logo_url:null,banner_url:null
+};
+let appearanceLoaded=false;
+let appearanceSaved={...appearanceDefaults};
+const validHex=value=>/^#[0-9a-fA-F]{6}$/.test(value||'');
+const validHttps=value=>{try{const u=new URL(value);return u.protocol==='https:'&&u.href.length<=2000;}catch{return false;}};
+function appearanceFeedback(message,success=false){notice('appearanceFeedback',message,success);}
+function appearanceBrightness(hex){const channels=[1,3,5].map(n=>parseInt(hex.slice(n,n+2),16)/255).map(c=>c<=.04045?c/12.92:((c+.055)/1.055)**2.4);return .2126*channels[0]+.7152*channels[1]+.0722*channels[2];}
+function contrast(first,second){const a=appearanceBrightness(first),b=appearanceBrightness(second);return (Math.max(a,b)+.05)/(Math.min(a,b)+.05);}
+function appearanceFill(a){
+ el('themePrimary').value=validHex(a.primary_color)?a.primary_color:appearanceDefaults.primary_color;
+ el('themeAccent').value=validHex(a.accent_color)?a.accent_color:appearanceDefaults.accent_color;
+ el('themeKicker').value=a.hero_kicker??appearanceDefaults.hero_kicker;
+ el('themeFirst').value=a.hero_first??appearanceDefaults.hero_first;
+ el('themeAccentText').value=a.hero_highlight??appearanceDefaults.hero_highlight;
+ el('themeLast').value=a.hero_last??appearanceDefaults.hero_last;
+ el('themeDescription').value=a.hero_description??appearanceDefaults.hero_description;
+ el('themeLogoUrl').value=a.logo_url||'';
+ el('themeBannerUrl').value=a.banner_url||'';
+ el('themeLogoFile').value='';el('themeBannerFile').value='';
+ el('themeRemoveBanner').checked=false;
+ appearancePreview();
+}
+function appearancePreview(){
+ const primary=el('themePrimary').value,accent=el('themeAccent').value;
+ const preview=el('themePreview');
+ if(validHex(primary))preview.style.background=primary;
+ if(validHex(accent))preview.style.setProperty('--preview-accent',accent);
+ const fields={themePreviewKicker:'themeKicker',themePreviewFirst:'themeFirst',themePreviewAccent:'themeAccentText',themePreviewLast:'themeLast',themePreviewDescription:'themeDescription'};
+ for(const [id,source] of Object.entries(fields))el(id).textContent=el(source).value||' '; 
+ const logo=el('themeLogoUrl').value||appearanceSaved.logo_url;
+ el('themePreviewLogo').src=validHttps(logo)?logo:'../logo-caarq.png';
+}
+async function loadAppearance(){
+ if(currentRole!=='admin')return;
+ appearanceFeedback('');
+ try{
+  const {data,error}=await client.from('caarq_aparencia').select('*').eq('id',1).maybeSingle();
+  if(error)throw error;
+  if(!data)throw new Error('Configuração não encontrada.');
+  appearanceSaved={...appearanceDefaults,...data};appearanceLoaded=true;
+  appearanceFill(appearanceSaved);
+ }catch(error){console.error('Configuração de aparência',error);appearanceFeedback('Ainda não foi possível carregar a aparência. Execute o arquivo SQL da versão 6 no Supabase e tente novamente.');}
+}
+el('openAppearance').addEventListener('click',async()=>{
+ if(currentRole!=='admin')return;
+ el('membersManager').hidden=true;el('projectsManager').hidden=true;el('appearanceManager').hidden=false;
+ await loadAppearance();
+ el('appearanceManager').scrollIntoView({behavior:'smooth',block:'start'});
+});
+el('closeAppearance').addEventListener('click',()=>{el('appearanceManager').hidden=true;el('dashboardView').scrollIntoView({behavior:'smooth',block:'start'});});
+for(const id of ['themePrimary','themeAccent','themeKicker','themeFirst','themeAccentText','themeLast','themeDescription','themeLogoUrl'])el(id).addEventListener('input',appearancePreview);
+for(const b of document.querySelectorAll('.theme-preset'))b.addEventListener('click',()=>{el('themePrimary').value=b.dataset.primary;el('themeAccent').value=b.dataset.accent;appearancePreview();});
+function acceptedThemeFile(file){return !file||(file.size<=5*1024*1024&&['image/png','image/jpeg','image/webp'].includes(file.type));}
+async function uploadThemeFile(file,type){
+ const ext={'image/png':'png','image/jpeg':'jpg','image/webp':'webp'}[file.type];
+ const key=`aparencia/${type}-${crypto.randomUUID()}.${ext}`;
+ const {error}=await client.storage.from('caarq-imagens').upload(key,file,{contentType:file.type,upsert:false,cacheControl:'3600'});
+ if(error)throw error;
+ return client.storage.from('caarq-imagens').getPublicUrl(key).data.publicUrl;
+}
+async function saveAppearanceData(changes,uploadedFiles){
+ const b=el('saveAppearance');b.disabled=true;b.textContent='Publicando…';
+ try{
+  if(uploadedFiles?.logo)changes.logo_url=await uploadThemeFile(uploadedFiles.logo,'logo');
+  if(uploadedFiles?.banner)changes.banner_url=await uploadThemeFile(uploadedFiles.banner,'banner');
+  const {data,error}=await client.from('caarq_aparencia').update({...changes,atualizado_em:new Date().toISOString()}).eq('id',1).select().single();
+  if(error)throw error;
+  appearanceSaved={...appearanceDefaults,...data};appearanceFill(appearanceSaved);
+  appearanceFeedback('Aparência publicada! Atualize a página inicial do CAARQ para conferir.',true);
+ }catch(error){console.error('Salvar aparência',error);appearanceFeedback('Não foi possível salvar a aparência. Confira sua autorização e o SQL da versão 6.');}
+ finally{b.disabled=false;b.textContent='Publicar aparência ↗';}
+}
+el('appearanceForm').addEventListener('submit',async e=>{
+ e.preventDefault();if(currentRole!=='admin'||!appearanceLoaded)return;
+ appearanceFeedback('');
+ const color=el('themePrimary').value,accent=el('themeAccent').value;
+ if(!validHex(color)||!validHex(accent)||contrast(color,'#ffffff')<4.5||contrast(accent,color)<3){appearanceFeedback('Escolha um tom principal escuro o suficiente para texto branco e uma cor de destaque com contraste. Tente uma das combinações prontas.');return;}
+ const textKeys={hero_kicker:'themeKicker',hero_first:'themeFirst',hero_highlight:'themeAccentText',hero_last:'themeLast',hero_description:'themeDescription'};
+ const changes={primary_color:color,accent_color:accent};
+ for(const [key,id] of Object.entries(textKeys)){const t=el(id).value.trim();if(!t){appearanceFeedback('Preencha todos os textos do banner.');return;}changes[key]=t;}
+ const logo=el('themeLogoUrl').value.trim(),banner=el('themeBannerUrl').value.trim();
+ if((logo&&!validHttps(logo))||(banner&&!validHttps(banner))){appearanceFeedback('Os links das imagens devem começar com https://.');return;}
+ changes.logo_url=logo||appearanceSaved.logo_url||null;
+ changes.banner_url=el('themeRemoveBanner').checked?null:(banner||appearanceSaved.banner_url||null);
+ const files={logo:el('themeLogoFile').files?.[0],banner:el('themeBannerFile').files?.[0]};
+ if(!acceptedThemeFile(files.logo)||!acceptedThemeFile(files.banner)){appearanceFeedback('Escolha arquivos PNG, JPEG ou WebP de até 5 MB.');return;}
+ if(el('themeRemoveBanner').checked)files.banner=null;
+ await saveAppearanceData(changes,files);
+});
+el('resetAppearance').addEventListener('click',async()=>{
+ if(currentRole!=='admin'||!appearanceLoaded||!confirm('Restaurar todas as cores, textos e imagens padrão do CAARQ?'))return;
+ await saveAppearanceData({...appearanceDefaults},null);
+});
+
+// A logo atualizada também aparece na entrada e no painel.
+async function loadAdminBrand(){
+ try{
+  const {data,error}=await client.from('caarq_aparencia').select('logo_url,primary_color,accent_color').eq('id',1).maybeSingle();
+  if(error||!data)return;
+  if(validHex(data.primary_color))document.documentElement.style.setProperty('--purple',data.primary_color);
+  if(validHex(data.accent_color))document.documentElement.style.setProperty('--yellow',data.accent_color);
+  if(data.logo_url&&validHttps(data.logo_url)){
+    const logo=document.querySelector('.admin-real-logo');if(logo){logo.onerror=()=>{logo.onerror=null;logo.src='../logo-caarq.png';};logo.src=data.logo_url;}
+  }
+ }catch(error){/* Mantém tema clássico. */}
+}
+void loadAdminBrand();
+
+
+// Iniciar autenticação SOMENTE após declarar todos os editores e eventos.
+try {
+  const inviteInUrl = location.hash.includes('type=invite') || location.search.includes('type=invite') || location.hash.includes('type=recovery') || location.search.includes('type=recovery');
+  const { data: { session } } = await client.auth.getSession();
+  if (session && inviteInUrl) { isSettingPassword = true; show('passwordView'); }
+  else await checkAccess();
+} catch (err) {
+  show('loginView');
+  notice('loginMessage', 'Não foi possível iniciar a conexão com o Supabase. Verifique sua internet ou tente novamente mais tarde.');
+}
+
