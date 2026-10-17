@@ -166,7 +166,7 @@ async function loadData() {
   try {
     const [g,m] = await Promise.all([
       client.from('caarq_gestoes').select('id,nome,ano_inicio,ano_fim,atual,publicada,criado_em').order('ano_inicio',{ascending:false}),
-      client.from('caarq_membros').select('id,gestao_id,nome,cargo,apresentacao,foto_url,ordem,publicado,criado_em').order('ordem',{ascending:true}).order('nome',{ascending:true})
+      client.from('caarq_membros').select('id,gestao_id,nome,cargo,coordenacao,apresentacao,foto_url,ordem,publicado,criado_em').order('ordem',{ascending:true}).order('nome',{ascending:true})
     ]);
     if (g.error) throw g.error;
     if (m.error) throw m.error;
@@ -211,7 +211,7 @@ function renderMembroList() {
       photo=document.createElement('img');photo.className='member-photo';photo.alt='';photo.loading='lazy';photo.referrerPolicy='no-referrer';photo.src=m.foto_url;
     }else{photo=node('div','member-photo member-photo-placeholder',(m.nome||'?').slice(0,1).toUpperCase());}
     const desc=node('div','record-detail');
-    desc.append(node('strong','record-title',m.nome),node('div','record-sub',`${m.cargo} · ${g?.nome||'Gestão não identificada'}`));
+    desc.append(node('strong','record-title',m.nome),node('div','record-sub',`${m.cargo}${m.coordenacao ? ' · Coordenação: ' + m.coordenacao : ''} · ${g?.nome||'Gestão não identificada'}`));
     const tags=node('div','record-tags');tags.append(badge(m.publicado?'Exibir no site':'Oculto',m.publicado?'published':''));desc.append(tags);
     const commands=node('div','record-actions');
     commands.append(action('Editar',()=>editMembro(m)),action(m.publicado?'Ocultar':'Publicar',()=>toggleMembro(m)));
@@ -232,6 +232,7 @@ function editMembro(m){
   el('membroGestao').value=m.gestao_id;
   el('membroNome').value=m.nome;
   el('membroCargo').value=m.cargo;
+  el('membroCoordenacao').value=m.coordenacao||'';
   el('membroBio').value=m.apresentacao||'';
   el('membroFoto').value=m.foto_url||'';
   el('membroOrdem').value=m.ordem??0;
@@ -283,7 +284,7 @@ el('membroForm').addEventListener('submit',async event=>{
   const id=el('membroId').value;
   const url=el('membroFoto').value.trim();
   if(url && !/^https:\/\//i.test(url)){feedback('Use um link de foto que comece com https://.');return;}
-  const changes={gestao_id:el('membroGestao').value,nome:el('membroNome').value.trim(),cargo:el('membroCargo').value.trim(),apresentacao:el('membroBio').value.trim()||null,foto_url:url||null,ordem:Number(el('membroOrdem').value)||0,publicado:el('membroPublicado').checked};
+  const changes={gestao_id:el('membroGestao').value,nome:el('membroNome').value.trim(),cargo:el('membroCargo').value.trim(),coordenacao:el('membroCoordenacao').value.trim()||null,apresentacao:el('membroBio').value.trim()||null,foto_url:url||null,ordem:Number(el('membroOrdem').value)||0,publicado:el('membroPublicado').checked};
   if(!changes.gestao_id||!changes.nome||!changes.cargo){feedback('Selecione a gestão e informe nome e cargo.');return;}
   const btn=el('saveMembro');btn.disabled=true;
   try{

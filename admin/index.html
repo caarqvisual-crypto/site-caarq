@@ -225,13 +225,17 @@ body{overflow-x:hidden}
             <div id="gestoesList" class="records-list"><p class="empty-records">Carregando gestões…</p></div>
           </div>
           <div class="manager-block">
-            <div class="block-head"><h4>2. Integrantes de cada gestão</h4><p>Cadastre nome, cargo e foto. Para fotos, nesta versão use um link público da imagem; depois adicionaremos envio direto do computador.</p></div>
+            <div class="block-head"><h4>2. Integrantes de cada gestão</h4><p>Cadastre nome, cargo, coordenação e foto. Para fotos, nesta versão use um link público da imagem; depois adicionaremos envio direto do computador.</p></div>
             <form id="membroForm" class="edit-form">
               <input id="membroId" type="hidden">
               <div class="form-grid">
                 <div><label for="membroGestao">Gestão *</label><select id="membroGestao" required><option value="">Selecione uma gestão</option></select></div>
                 <div><label for="membroNome">Nome do integrante *</label><input id="membroNome" required maxlength="160" placeholder="Nome completo"></div>
-                <div><label for="membroCargo">Cargo *</label><input id="membroCargo" required maxlength="120" placeholder="Ex.: Coordenação de Comunicação"></div>
+                <div><label for="membroCargo">Cargo *</label><input id="membroCargo" required maxlength="120" placeholder="Ex.: Coordenadora, Secretário, Tesouraria"></div>
+                <div><label for="membroCoordenacao">Coordenação / setor</label><input id="membroCoordenacao" list="coordenacoesCAARQ" maxlength="120" placeholder="Ex.: Comunicação"></div>
+                <datalist id="coordenacoesCAARQ">
+                  <option value="Presidência"><option value="Vice-presidência"><option value="Comunicação"><option value="Eventos"><option value="Cultura"><option value="Secretaria"><option value="Tesouraria"><option value="Assuntos acadêmicos"><option value="Projetos"><option value="Ouvidoria"><option value="LOCA"><option value="Geral">
+                </datalist>
                 <div><label for="membroOrdem">Ordem de exibição</label><input id="membroOrdem" type="number" min="0" max="9999" value="0"></div>
                 <div class="form-full"><label for="membroBio">Apresentação (opcional)</label><textarea id="membroBio" rows="3" maxlength="1000" placeholder="Breve apresentação"></textarea></div>
                 <div class="form-full"><label for="membroFoto">Link público da foto (opcional)</label><input id="membroFoto" type="url" inputmode="url" placeholder="https://exemplo.com/foto.jpg"></div>
@@ -280,6 +284,6 @@ body{overflow-x:hidden}
       <footer class="content-footer">CAARQ BRÍGGIDA LOURENÇO <span>© 2026</span></footer>
     </main>
   </div>
-  <script type="module" src="script.js?v=6-aparencia"></script>
+  <script type="module" src="script.js?v=8-coordenacoes"></script>
 </body>
 </html>
