@@ -69,6 +69,7 @@ async function checkAccess() {
   el('appearanceTile').hidden = !canEditAppearance();
   el('projectsTile').hidden = !canEditProjects();
   el('accessTile').hidden = currentRole !== 'admin';
+  el('auditTile').hidden = currentRole !== 'admin';
   if (canEditMembers()) await loadData();
   el('accountEmail').textContent = user.email || 'Membro autorizado';
   show('dashboardView');
@@ -759,9 +760,9 @@ function renderAccounts(users){
       save.disabled=true;accessMsg('');
       try{
         const name=nameInput.value.trim();
-        await callAccess({action:'update',user_id:user.user_id,name,active:user.active,
+        const updated=await callAccess({action:'update',user_id:user.user_id,name,active:user.active,
           permissions:Object.fromEntries(accessFields.map(k=>[k,flags[k].checked]))});
-        accessMsg(`Permissões de ${name} atualizadas!`,true);
+        accessMsg(updated.audit_warning?'Permissões salvas, mas o registro no histórico falhou. Confira o Supabase.':`Permissões de ${name} atualizadas!`,!updated.audit_warning);
         await loadAccounts();
       }catch(error){accessMsg(error.message);}
       finally{save.disabled=false;}
@@ -770,9 +771,9 @@ function renderAccounts(users){
       if(!confirm(`${user.active?'Suspender':'Reativar'} o acesso de ${user.nome}?`))return;
       toggle.disabled=true;
       try{
-        await callAccess({action:'update',user_id:user.user_id,name:nameInput.value.trim(),active:!user.active,
+        const updated=await callAccess({action:'update',user_id:user.user_id,name:nameInput.value.trim(),active:!user.active,
           permissions:Object.fromEntries(accessFields.map(k=>[k,flags[k].checked]))});
-        accessMsg('Situação do acesso atualizada!',true);await loadAccounts();
+        accessMsg(updated.audit_warning?'Acesso atualizado, mas não foi possível registrar o evento no histórico.':'Situação do acesso atualizada!',!updated.audit_warning);await loadAccounts();
       }catch(error){accessMsg(error.message);}
       finally{toggle.disabled=false;}
     });if(user.active)toggle.className='warn';
@@ -781,6 +782,7 @@ function renderAccounts(users){
       reset.disabled=true;hideTempPassword();
       try{
         const result=await callAccess({action:'reset',user_id:user.user_id});
+        if(result.audit_warning)accessMsg('Senha redefinida, mas o registro no histórico falhou.');
         if(!result?.provisional_password)throw new Error('A senha não foi devolvida pelo serviço.');
         showTempPassword(result.provisional_password);
         accessMsg(`Nova senha de ${user.nome} gerada. Copie e entregue de forma privada.`,true);
@@ -821,7 +823,7 @@ el('accessCreateForm').addEventListener('submit',async e=>{
     const result=await callAccess({action:'create',name,email,permissions:userPermsFromForm('new')});
     if(!result?.provisional_password)throw new Error('A conta foi criada, mas a senha não foi retornada. Consulte a lista antes de tentar novamente.');
     showTempPassword(result.provisional_password);
-    accessMsg('Conta criada! Entregue a senha provisória diretamente à pessoa. Ela deverá trocá-la no primeiro acesso.',true);
+    accessMsg(result.audit_warning?'Conta criada, mas o registro no histórico falhou. Entregue a senha por canal privado.':'Conta criada! Entregue a senha provisória diretamente à pessoa. Ela deverá trocá-la no primeiro acesso.',!result.audit_warning);
     el('accessCreateForm').reset();
     await loadAccounts();
   }catch(error){accessMsg(error.message);}
@@ -1525,6 +1527,81 @@ for(const button of document.querySelectorAll('[data-notification-filter]')){
     }
     notificationRender();
   });
+}
+
+
+// CAARQ V14 — histórico de ações administrativas. A consulta só acontece
+// através da Edge Function, que confirma novamente o papel de admin geral.
+const auditActions={
+  conta_criada:['Conta criada','+'],
+  permissoes_alteradas:['Permissões atualizadas','✓'],
+  acesso_suspenso:['Acesso suspenso','−'],
+  acesso_reativado:['Acesso reativado','↗'],
+  nome_alterado:['Nome alterado','✎'],
+  senha_redefinida:['Senha provisória redefinida','◇'],
+};
+const auditFields={pode_membros:'Membros e gestões',pode_projetos:'Projetos e calendário',pode_aparencia:'Aparência do site',pode_loca:'Loja LOCA',pode_criar_grupos:'Criação de grupos'};
+let auditPage=0;
+let auditBusy=false;
+function auditRender(events,append=false){
+  const list=el('auditList');
+  if(!append)list.replaceChildren();
+  if(!events.length&&!append){list.append(node('p','empty-records','Nenhuma atividade registrada ainda. O histórico começa após esta atualização.'));return;}
+  for(const record of events){
+    const [title,symbol]=auditActions[record.acao]||['Atividade administrativa','•'];
+    const article=node('article','audit-event');
+    const badge=node('div','audit-symbol',symbol);
+    const body=node('div','audit-event-body');
+    const name=record.alvo_nome||'Integrante';
+    const titleEl=node('strong','',title);
+    const description=node('p','',`Conta: ${name}`);
+    const when=new Date(record.ocorrido_em);
+    const time=Number.isNaN(when.getTime())?'Data indisponível':new Intl.DateTimeFormat('pt-BR',{dateStyle:'medium',timeStyle:'short'}).format(when);
+    const by=node('small','',`Responsável: ${record.autor_nome||'Administração Geral'} · ${time}`);
+    body.append(titleEl,description,by);
+    const fields=Array.isArray(record.detalhes?.campos)?record.detalhes.campos:[];
+    if(fields.length){
+      const labels=fields.map(key=>auditFields[key]).filter(Boolean);
+      if(labels.length)body.append(node('small','',`Permissões modificadas: ${labels.join(', ')}`));
+    }
+    article.append(badge,body);
+    list.append(article);
+  }
+}
+async function auditLoad(append=false){
+  if(currentRole!=='admin'||auditBusy)return;
+  auditBusy=true;
+  const button=el('auditLoadMore');button.disabled=true;
+  notice('auditFeedback','');
+  if(!append)el('auditList').replaceChildren(node('p','empty-records','Carregando histórico…'));
+  try{
+    const result=await callAccess({action:'audit_list',page:append?auditPage:0,filter:el('auditFilter').value});
+    const records=result.events||[];
+    auditRender(records,append);
+    button.hidden=!result.has_more;
+    if(append)auditPage++;
+    else auditPage=1;
+  }catch(error){
+    notice('auditFeedback',error.message||'Não foi possível carregar o histórico.');
+    if(!append)el('auditList').replaceChildren(node('p','empty-records','Não foi possível carregar as atividades.'));
+  }finally{button.disabled=false;auditBusy=false;}
+}
+el('openAudit').addEventListener('click',async()=>{
+  if(currentRole!=='admin')return;
+  for(const id of ['membersManager','projectsManager','appearanceManager','profileManager','accessManager','notificationCenter','chatManager']) el(id).hidden=true;
+  el('auditManager').hidden=false;
+  el('auditManager').scrollIntoView({behavior:'smooth',block:'start'});
+  await auditLoad(false);
+});
+el('closeAudit').addEventListener('click',()=>{
+  el('auditManager').hidden=true;
+  el('dashboardView').scrollIntoView({behavior:'smooth',block:'start'});
+});
+el('auditRefresh').addEventListener('click',()=>void auditLoad(false));
+el('auditFilter').addEventListener('change',()=>void auditLoad(false));
+el('auditLoadMore').addEventListener('click',()=>void auditLoad(true));
+for(const id of ['openProfile','openMembers','openProjects','openAppearance','openAccess','openNotifications','openNotificationsTop','openChat']) {
+  el(id)?.addEventListener('click',()=>{el('auditManager').hidden=true;},{capture:true});
 }
 
 // Iniciar autenticação SOMENTE após declarar todos os editores e eventos.

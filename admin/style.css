@@ -212,3 +212,17 @@ body{overflow-x:hidden}
 .notification-empty strong{font-size:18px;color:#40194f;}
 .notification-empty p{font-size:12px;color:#806e88;line-height:1.7;margin:0;}
 @media(max-width:680px){.account-actions{justify-content:flex-start;width:100%;}.notification-bell{flex:1;justify-content:center;}.notification-block{padding:15px;}.notification-entry{padding:13px;gap:11px;}.notification-entry-icon{height:40px;width:40px;}.notification-filter-button{flex:1;}.notification-bell span:not(.chat-badge){display:inline;}}
+
+
+/* CAARQ V14 — Histórico administrativo */
+.audit-manager{min-width:0}
+.audit-controls{display:flex;gap:14px;align-items:end;justify-content:space-between;flex-wrap:wrap;margin-bottom:22px}
+.audit-controls label{display:block;margin-bottom:7px;color:var(--purple);font-size:12px;font-weight:800}
+.audit-controls select{min-width:min(340px,100%);max-width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--border);border-radius:6px;font:inherit;font-size:12px;color:var(--purple);background:#fff}
+.audit-list{display:grid;gap:12px;min-width:0}
+.audit-event{display:flex;align-items:flex-start;gap:13px;border:1px solid #eaddec;border-radius:9px;padding:17px;background:#fff;min-width:0}
+.audit-symbol{display:grid;place-items:center;flex:0 0 40px;width:40px;height:40px;background:#f5eafb;border-radius:50%;font-size:18px;color:var(--purple)}
+.audit-event-body{min-width:0;flex:1}.audit-event-body strong{display:block;color:var(--purple);font-size:13px;line-height:1.45}.audit-event-body p{font-size:12px;color:var(--ink);line-height:1.6;margin:7px 0}.audit-event-body small{display:block;color:var(--muted);font-size:11px;line-height:1.6;overflow-wrap:anywhere}
+.audit-stamp{background:#f7f1f9;color:#6d4d7c;white-space:nowrap;padding:7px 10px;font-size:10px;font-weight:800;border-radius:30px}
+.audit-more{display:block;margin:20px auto 0;min-width:190px}.audit-more[hidden]{display:none!important}
+@media(max-width:630px){.audit-controls{align-items:stretch;flex-direction:column}.audit-controls>div,.audit-controls select,.audit-controls button{width:100%}.audit-event{padding:13px;gap:9px}.audit-symbol{flex-basis:32px;width:32px;height:32px}.audit-stamp{display:none}}
