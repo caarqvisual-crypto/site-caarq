@@ -170,6 +170,7 @@ client.auth.onAuthStateChange((event, session) => {
 // com as políticas RLS como barreira real de autorização.
 let gestoes = [];
 let membros = [];
+let coordenacoes = [];
 let recordsLoaded = false;
 const isEditor = () => canEditMembers();
 function feedback(message, success=false) {
@@ -212,18 +213,25 @@ async function loadData() {
   if (!isEditor()) return;
   feedback('');
   try {
-    const [g,m] = await Promise.all([
+    const [g,m,c] = await Promise.all([
       client.from('caarq_gestoes').select('id,nome,ano_inicio,ano_fim,atual,publicada,criado_em').order('ano_inicio',{ascending:false}),
-      client.from('caarq_membros').select('id,gestao_id,nome,cargo,coordenacao,apresentacao,foto_url,ordem,publicado,criado_em').order('ordem',{ascending:true}).order('nome',{ascending:true})
+      client.from('caarq_membros').select('id,gestao_id,nome,cargo,coordenacao,coordenacao_id,apresentacao,atribuicoes,foto_url,ordem,publicado,criado_em').order('ordem',{ascending:true}).order('nome',{ascending:true}),
+      client.from('caarq_organograma_setores').select('id,gestao_id,nome,descricao,nivel,ordem,publicado').order('ordem',{ascending:true}).order('nome',{ascending:true})
     ]);
     if (g.error) throw g.error;
     if (m.error) throw m.error;
+    if (c.error) throw c.error;
     gestoes = g.data || [];
     membros = m.data || [];
+    coordenacoes = c.data || [];
     recordsLoaded = true;
     renderGestaoList();
     selectOptions(el('membroGestao'),gestoes,'Selecione uma gestão');
     selectOptions(el('filterGestao'),gestoes,'Todas as gestões');
+    selectOptions(el('coordGestao'),gestoes,'Selecione uma gestão');
+    if (!el('coordGestao').value && gestoes.length) el('coordGestao').value=gestoes.find(g=>g.atual)?.id||gestoes[0].id;
+    updateCoordMemberChoices();
+    renderCoordList();
     renderMembroList();
   } catch(error) {
     feedback('Não foi possível carregar as informações. Confira as permissões das tabelas no Supabase.');
@@ -259,10 +267,11 @@ function renderMembroList() {
       photo=document.createElement('img');photo.className='member-photo';photo.alt='';photo.loading='lazy';photo.referrerPolicy='no-referrer';photo.src=m.foto_url;
     }else{photo=node('div','member-photo member-photo-placeholder',(m.nome||'?').slice(0,1).toUpperCase());}
     const desc=node('div','record-detail');
-    desc.append(node('strong','record-title',m.nome),node('div','record-sub',`${m.cargo}${m.coordenacao ? ' · Coordenação: ' + m.coordenacao : ''} · ${g?.nome||'Gestão não identificada'}`));
+    const coord=coordenacoes.find(c=>c.id===m.coordenacao_id);
+    desc.append(node('strong','record-title',m.nome),node('div','record-sub',`${m.cargo}${coord ? ' · Coordenação: '+coord.nome : m.coordenacao ? ' · Coordenação: '+m.coordenacao : ''} · ${g?.nome||'Gestão não identificada'}`));
     const tags=node('div','record-tags');tags.append(badge(m.publicado?'Exibir no site':'Oculto',m.publicado?'published':''));desc.append(tags);
     const commands=node('div','record-actions');
-    commands.append(action('Editar',()=>editMembro(m)),action(m.publicado?'Ocultar':'Publicar',()=>toggleMembro(m)));
+    commands.append(action('Editar',()=>editMembro(m)),action(m.publicado?'Ocultar':'Publicar',()=>toggleMembro(m)),action('Excluir',()=>deleteMembro(m)));
     item.append(photo,desc,commands);list.append(item);
   }
 }
@@ -278,17 +287,19 @@ function editGestao(g){
 function editMembro(m){
   el('membroId').value=m.id;
   el('membroGestao').value=m.gestao_id;
+  updateCoordMemberChoices();
   el('membroNome').value=m.nome;
   el('membroCargo').value=m.cargo;
-  el('membroCoordenacao').value=m.coordenacao||'';
+  el('membroCoordenacao').value=m.coordenacao_id||'';
   el('membroBio').value=m.apresentacao||'';
+  el('membroAtribuicoes').value=m.atribuicoes||'';
   el('membroFoto').value=m.foto_url||'';
   el('membroOrdem').value=m.ordem??0;
   el('membroPublicado').checked=Boolean(m.publicado);
   el('membroForm').scrollIntoView({behavior:'smooth',block:'start'});
 }
 function clearGestao(){el('gestaoForm').reset();el('gestaoId').value='';}
-function clearMembro(){el('membroForm').reset();el('membroId').value='';}
+function clearMembro(){el('membroForm').reset();el('membroId').value='';el('membroFotoFile').value='';updateCoordMemberChoices();}
 el('openMembers').addEventListener('click',async()=>{
   if(!isEditor())return;
   el('accessManager').hidden=true;el('membersManager').hidden=false;
@@ -303,7 +314,94 @@ el('closeMembers').addEventListener('click',()=>{
 });
 el('cancelGestao').addEventListener('click',clearGestao);
 el('cancelMembro').addEventListener('click',clearMembro);
+
+// V17 · Editor de organograma por gestão, sem nomes fixos nem permissões novas.
+function updateCoordMemberChoices(){
+ const sel=el('membroCoordenacao'), previous=sel.value;
+ const options=coordenacoes.filter(c=>c.gestao_id===el('membroGestao').value);
+ sel.replaceChildren();const empty=document.createElement('option');empty.value='';empty.textContent='Sem coordenação definida';sel.append(empty);
+ for(const c of options){const opt=document.createElement('option');opt.value=c.id;opt.textContent=c.nome;sel.append(opt);}
+ sel.value=options.some(c=>c.id===previous)?previous:'';
+}
+function resetCoord(){el('coordenacaoForm').reset();el('coordId').value='';el('coordOrdem').value='0';el('coordNivel').value='0';}
+function editCoord(c){
+ el('coordId').value=c.id;el('coordGestao').value=c.gestao_id;el('coordNome').value=c.nome;
+ el('coordDescricao').value=c.descricao||'';el('coordNivel').value=String(c.nivel||0);
+ el('coordOrdem').value=c.ordem??0;el('coordPublicada').checked=c.publicado===true;
+ el('coordenacaoForm').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function renderCoordList(){
+ const box=el('coordsList');box.replaceChildren();const selected=el('coordGestao').value;
+ if(!selected){box.append(node('p','empty-records','Cadastre ou selecione uma gestão acima.'));return;}
+ const arr=coordenacoes.filter(c=>c.gestao_id===selected).sort((a,b)=>a.ordem-b.ordem||a.nome.localeCompare(b.nome,'pt-BR'));
+ if(!arr.length){box.append(node('p','empty-records','Nenhuma coordenação ainda. Você poderá cadastrá-las quando receber os nomes oficiais.'));return;}
+ for(let i=0;i<arr.length;i++){
+  const c=arr[i], item=node('div','record');const desc=node('div','record-detail');
+  desc.append(node('strong','record-title',c.nome),node('div','record-sub',`Nível ${c.nivel+1} · Posição ${c.ordem}`));
+  if(c.descricao)desc.append(node('p','record-sub',c.descricao));
+  desc.append(badge(c.publicado?'Publicada':'Rascunho',c.publicado?'published':''));
+  const actions=node('div','record-actions');
+  actions.append(action('Editar',()=>editCoord(c)));
+  const up=action('↑',()=>moveCoord(c,arr[i-1]));up.setAttribute('aria-label','Subir '+c.nome);up.disabled=i===0;
+  const down=action('↓',()=>moveCoord(c,arr[i+1]));down.setAttribute('aria-label','Descer '+c.nome);down.disabled=i===arr.length-1;
+  actions.append(up,down);
+  actions.append(action(c.publicado?'Ocultar':'Publicar',()=>toggleCoord(c)));
+  actions.append(action('Excluir',()=>deleteCoord(c)));
+  item.append(desc,actions);box.append(item);
+ }
+}
+async function moveCoord(c,other){
+ if(!other)return;
+ // Posições numéricas permitem ordenar sem arrastar no celular.
+  const arr=coordenacoes.filter(x=>x.gestao_id===c.gestao_id)
+   .sort((a,b)=>a.ordem-b.ordem||a.nome.localeCompare(b.nome,'pt-BR'));
+ const from=arr.findIndex(x=>x.id===c.id),to=arr.findIndex(x=>x.id===other.id);
+ if(from<0||to<0)return;
+ const [entry]=arr.splice(from,1);arr.splice(to,0,entry);
+ try{
+  for(let i=0;i<arr.length;i++){
+   const {error}=await client.from('caarq_organograma_setores').update({ordem:i*10}).eq('id',arr[i].id);
+   if(error)throw error;
+  }
+  await loadData();
+ }catch(error){feedback('Não foi possível reordenar. Tente editar a posição diretamente.');}
+}
+async function toggleCoord(c){
+ try{
+  const {error}=await client.from('caarq_organograma_setores').update({publicado:!c.publicado}).eq('id',c.id);
+  if(error)throw error;await loadData();feedback('Visibilidade da coordenação atualizada.',true);
+ }catch(error){feedback('Não foi possível mudar a visibilidade.');}
+}
+async function deleteCoord(c){
+ if(!confirm(`Excluir a coordenação "${c.nome}"? Os integrantes serão preservados, mas ficarão sem coordenação.`))return;
+ try{
+  const {error:linkError}=await client.from('caarq_membros').update({coordenacao_id:null,coordenacao:null}).eq('coordenacao_id',c.id);
+  if(linkError)throw linkError;
+  const {error}=await client.from('caarq_organograma_setores').delete().eq('id',c.id);
+  if(error)throw error;
+  resetCoord();await loadData();feedback('Coordenação excluída. Os integrantes foram preservados.',true);
+ }catch(error){feedback('Não foi possível excluir a coordenação.');}
+}
+el('cancelCoord').addEventListener('click',resetCoord);
+el('coordGestao').addEventListener('change',()=>{el('coordId').value='';renderCoordList();});
+el('coordenacaoForm').addEventListener('submit',async ev=>{
+ ev.preventDefault();if(!canEditMembers())return;
+ const id=el('coordId').value,changes={gestao_id:el('coordGestao').value,nome:el('coordNome').value.trim(),
+ descricao:el('coordDescricao').value.trim(),nivel:Number(el('coordNivel').value),
+ ordem:Number(el('coordOrdem').value)||0,publicado:el('coordPublicada').checked};
+ if(!changes.gestao_id||!changes.nome){feedback('Selecione a gestão e digite o nome da coordenação.');return;}
+ const button=el('saveCoord');button.disabled=true;
+ try{
+  const q=id?client.from('caarq_organograma_setores').update(changes).eq('id',id):client.from('caarq_organograma_setores').insert(changes);
+  const {error}=await q;if(error)throw error;
+  // Nome público é lido da coordenação por ID: renomear não altera vínculos.
+  resetCoord();await loadData();feedback('Coordenação salva. Você pode editá-la sempre que precisar!',true);
+ }catch(error){console.error('Salvar coordenação',error);feedback('Não foi possível salvar. Veja se já existe uma coordenação com o mesmo nome nesta gestão.');}
+ finally{button.disabled=false;}
+});
+
 el('filterGestao').addEventListener('change',renderMembroList);
+el('membroGestao').addEventListener('change',updateCoordMemberChoices);
 el('gestaoForm').addEventListener('submit',async event=>{
   event.preventDefault();if(!isEditor())return;
   const id=el('gestaoId').value;
@@ -333,16 +431,35 @@ el('membroForm').addEventListener('submit',async event=>{
   const id=el('membroId').value;
   const url=el('membroFoto').value.trim();
   if(url && !/^https:\/\//i.test(url)){feedback('Use um link de foto que comece com https://.');return;}
-  const changes={gestao_id:el('membroGestao').value,nome:el('membroNome').value.trim(),cargo:el('membroCargo').value.trim(),coordenacao:el('membroCoordenacao').value.trim()||null,apresentacao:el('membroBio').value.trim()||null,foto_url:url||null,ordem:Number(el('membroOrdem').value)||0,publicado:el('membroPublicado').checked};
+  const coordenacao_id=el('membroCoordenacao').value||null;
+  const group=coordenacoes.find(c=>c.id===coordenacao_id);
+  const changes={gestao_id:el('membroGestao').value,nome:el('membroNome').value.trim(),cargo:el('membroCargo').value.trim(),coordenacao_id,coordenacao:group?.nome||null,apresentacao:el('membroBio').value.trim()||null,atribuicoes:el('membroAtribuicoes').value.trim()||null,foto_url:url||null,ordem:Number(el('membroOrdem').value)||0,publicado:el('membroPublicado').checked};
   if(!changes.gestao_id||!changes.nome||!changes.cargo){feedback('Selecione a gestão e informe nome e cargo.');return;}
   const btn=el('saveMembro');btn.disabled=true;
   try{
+    const file=el('membroFotoFile').files?.[0];
+    if(file){
+      if(file.size>5*1024*1024||!['image/png','image/jpeg','image/webp'].includes(file.type))throw Error('Envie foto PNG, JPEG ou WebP de até 5 MB.');
+      const ext={'image/png':'png','image/jpeg':'jpg','image/webp':'webp'}[file.type];
+      const key=`membros/${crypto.randomUUID()}.${ext}`;
+      const {error:uploadError}=await client.storage.from('caarq-imagens').upload(key,file,{contentType:file.type,upsert:false});
+      if(uploadError)throw uploadError;
+      changes.foto_url=client.storage.from('caarq-imagens').getPublicUrl(key).data.publicUrl;
+    }
     const q=id?client.from('caarq_membros').update(changes).eq('id',id):client.from('caarq_membros').insert(changes);
     const {error}=await q;if(error)throw error;
-    clearMembro();await loadData();feedback('Integrante salvo! O perfil fica disponível para a futura página pública, conforme o status de publicação.',true);
-  }catch(error){feedback('Não foi possível salvar o integrante. Confira os campos e as permissões do Supabase.');}
+    clearMembro();await loadData();feedback('Integrante salvo! Atualize a página pública para conferir quando estiver publicado.',true);
+  }catch(error){console.error('Cadastro de integrante',error);feedback(error?.message||'Não foi possível salvar. Confira as permissões do Supabase.');}
   finally{btn.disabled=false;}
 });
+async function deleteMembro(m){
+ if(!canEditMembers()||!confirm(`Excluir definitivamente o cadastro de ${m.nome}? Esta ação não pode ser desfeita.`))return;
+ try{
+  const {error}=await client.from('caarq_membros').delete().eq('id',m.id);
+  if(error)throw error;
+  await loadData();feedback('Integrante excluído do cadastro.',true);
+ }catch(error){feedback('Não foi possível excluir. Confira suas permissões.');}
+}
 async function toggleMembro(m){
   if(!isEditor())return;
   try{
@@ -418,7 +535,7 @@ el('projectForm').addEventListener('submit',async event=>{
 // V6 — Gerenciamento da aparência. Somente a Administração Geral tem permissão
 // de gravar esta tabela; a RLS do Supabase garante isso também no servidor.
 const appearanceDefaults={
- primary_color:'#40194f',accent_color:'#ffd02f',hero_kicker:'Memória · Acesso · Participação',
+ primary_color:'#40194f',accent_color:'#ffd02f',background_color:'#fffdf9',surface_color:'#ffffff',text_color:'#281d2e',font_family:'Montserrat',corner_radius:8,hero_kicker:'Memória · Acesso · Participação',
  hero_first:'Guardar memórias.',hero_highlight:'Transformar',hero_last:'futuros.',
  hero_description:'Somos o Centro Acadêmico de Arquivologia da UEPB, Campus V. Um espaço de representação estudantil, diálogo e construção coletiva.',
  logo_url:null,banner_url:null
@@ -433,6 +550,11 @@ function contrast(first,second){const a=appearanceBrightness(first),b=appearance
 function appearanceFill(a){
  el('themePrimary').value=validHex(a.primary_color)?a.primary_color:appearanceDefaults.primary_color;
  el('themeAccent').value=validHex(a.accent_color)?a.accent_color:appearanceDefaults.accent_color;
+ for(const [field,key] of Object.entries({themeBackground:'background_color',themeSurface:'surface_color',themeText:'text_color'}))
+  el(field).value=validHex(a[key])?a[key]:appearanceDefaults[key];
+ for(const name of ['themePrimary','themeAccent','themeBackground','themeSurface','themeText'])el(name+'Hex').value=el(name).value.toUpperCase();
+ el('themeFont').value=a.font_family||'Montserrat';
+ el('themeRadius').value=String(a.corner_radius??8);
  el('themeKicker').value=a.hero_kicker??appearanceDefaults.hero_kicker;
  el('themeFirst').value=a.hero_first??appearanceDefaults.hero_first;
  el('themeAccentText').value=a.hero_highlight??appearanceDefaults.hero_highlight;
@@ -449,6 +571,10 @@ function appearancePreview(){
  const preview=el('themePreview');
  if(validHex(primary))preview.style.background=primary;
  if(validHex(accent))preview.style.setProperty('--preview-accent',accent);
+ preview.style.borderRadius=el('themeRadius').value+'px';
+ preview.style.fontFamily=JSON.stringify(el('themeFont').value)+',Arial,sans-serif';
+ el('themePreviewKicker').style.color='#ffffff';
+ el('themePreviewDescription').style.color='#ffffff';
  const fields={themePreviewKicker:'themeKicker',themePreviewFirst:'themeFirst',themePreviewAccent:'themeAccentText',themePreviewLast:'themeLast',themePreviewDescription:'themeDescription'};
  for(const [id,source] of Object.entries(fields))el(id).textContent=el(source).value||' '; 
  const logo=el('themeLogoUrl').value||appearanceSaved.logo_url;
@@ -472,8 +598,16 @@ el('openAppearance').addEventListener('click',async()=>{
  el('appearanceManager').scrollIntoView({behavior:'smooth',block:'start'});
 });
 el('closeAppearance').addEventListener('click',()=>{el('appearanceManager').hidden=true;el('dashboardView').scrollIntoView({behavior:'smooth',block:'start'});});
-for(const id of ['themePrimary','themeAccent','themeKicker','themeFirst','themeAccentText','themeLast','themeDescription','themeLogoUrl'])el(id).addEventListener('input',appearancePreview);
-for(const b of document.querySelectorAll('.theme-preset'))b.addEventListener('click',()=>{el('themePrimary').value=b.dataset.primary;el('themeAccent').value=b.dataset.accent;appearancePreview();});
+for(const id of ['themePrimary','themeAccent','themeKicker','themeFirst','themeAccentText','themeLast','themeDescription','themeLogoUrl','themeBackground','themeSurface','themeText','themeFont','themeRadius'])el(id).addEventListener('input',appearancePreview);
+// Cada cor permite seletor visual e digitação manual do código HEX.
+for(const name of ['themePrimary','themeAccent','themeBackground','themeSurface','themeText']){
+ const picker=el(name),hex=el(name+'Hex');
+ picker.addEventListener('input',()=>{hex.value=picker.value.toUpperCase();appearancePreview();});
+ hex.addEventListener('input',()=>{const value=hex.value.trim();if(validHex(value)){picker.value=value;appearancePreview();}});
+ hex.addEventListener('blur',()=>{if(!validHex(hex.value))hex.value=picker.value.toUpperCase();});
+}
+
+for(const b of document.querySelectorAll('.theme-preset'))b.addEventListener('click',()=>{el('themePrimary').value=b.dataset.primary;el('themeAccent').value=b.dataset.accent;el('themePrimaryHex').value=b.dataset.primary.toUpperCase();el('themeAccentHex').value=b.dataset.accent.toUpperCase();appearancePreview();});
 function acceptedThemeFile(file){return !file||(file.size<=5*1024*1024&&['image/png','image/jpeg','image/webp'].includes(file.type));}
 async function uploadThemeFile(file,type){
  const ext={'image/png':'png','image/jpeg':'jpg','image/webp':'webp'}[file.type];
@@ -498,9 +632,13 @@ el('appearanceForm').addEventListener('submit',async e=>{
  e.preventDefault();if(!canEditAppearance()||!appearanceLoaded)return;
  appearanceFeedback('');
  const color=el('themePrimary').value,accent=el('themeAccent').value;
- if(!validHex(color)||!validHex(accent)||contrast(color,'#ffffff')<4.5||contrast(accent,color)<3){appearanceFeedback('Escolha um tom principal escuro o suficiente para texto branco e uma cor de destaque com contraste. Tente uma das combinações prontas.');return;}
+ const background=el('themeBackground').value,surface=el('themeSurface').value,textColor=el('themeText').value;
+ if([color,accent,background,surface,textColor].some(x=>!validHex(x)) ||
+    contrast(color,'#ffffff')<4.5||contrast(accent,color)<3||
+    contrast(textColor,background)<4.5||contrast(textColor,surface)<4.5){
+    appearanceFeedback('Essas cores deixam algum texto difícil de ler. Aumente o contraste entre texto e fundos, e mantenha a cor principal legível com branco.');return;}
  const textKeys={hero_kicker:'themeKicker',hero_first:'themeFirst',hero_highlight:'themeAccentText',hero_last:'themeLast',hero_description:'themeDescription'};
- const changes={primary_color:color,accent_color:accent};
+ const changes={primary_color:color,accent_color:accent,background_color:background,surface_color:surface,text_color:textColor,font_family:el('themeFont').value,corner_radius:Number(el('themeRadius').value)};
  for(const [key,id] of Object.entries(textKeys)){const t=el(id).value.trim();if(!t){appearanceFeedback('Preencha todos os textos do banner.');return;}changes[key]=t;}
  const logo=el('themeLogoUrl').value.trim(),banner=el('themeBannerUrl').value.trim();
  if((logo&&!validHttps(logo))||(banner&&!validHttps(banner))){appearanceFeedback('Os links das imagens devem começar com https://.');return;}
@@ -674,9 +812,9 @@ el('profileForm').addEventListener('submit',async e=>{
 
 // V10 · Contas e permissões: a chave secreta nunca é enviada ao navegador.
 const accessRoles = {
-  pode_membros: 'Integrantes e gestões',
+  pode_membros: 'Integrantes, coordenações e organograma',
   pode_projetos: 'Projetos e calendário',
-  pode_aparencia: 'Aparência do site',
+  pode_aparencia: 'Cores e aparência do site',
   pode_loca: 'LOCA — cadastrar produtos e fotos',
   pode_loca_precos: 'LOCA — alterar preços',
   pode_loca_visual: 'LOCA — banner e apresentação',

@@ -252,3 +252,12 @@ body{overflow-x:hidden}
 .loca-manager .loca-photo-item{min-width:0;display:grid;gap:6px}.loca-manager .loca-photo-item img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:9px}
 .loca-manager .loca-photos-editor{border-top:1px solid #e8ddeb;padding-top:20px;margin-top:22px}.loca-manager .loca-photos-editor h4{margin-bottom:16px}
 @media(max-width:800px){.loca-manager .loca-record{grid-template-columns:76px minmax(0,1fr)}.loca-manager .loca-record-photo{width:76px;height:76px}.loca-manager .loca-record-actions{grid-column:1/-1;max-width:100%}.loca-manager .loca-price-inline input{min-width:92px}}
+
+/* V17 — estúdio visual e editor do organograma. */
+.theme-color-pair{display:flex;gap:9px;align-items:center;min-width:0}
+.theme-color-pair input[type=color]{width:66px!important;min-width:66px!important;height:49px!important;padding:4px!important;margin:0!important;cursor:pointer}
+.theme-color-pair input:not([type=color]){min-width:0;width:100%;margin:0!important;font-size:13px;font-family:monospace;text-transform:uppercase}
+#coordNome,#coordDescricao{width:100%}
+#organogramEditor .record-actions{display:flex;flex-wrap:wrap;gap:7px}
+#organogramEditor .record-actions button{min-width:40px}
+@media(max-width:650px){.theme-color-pair{width:100%}.theme-color-pair input:not([type=color]){flex:1}}
