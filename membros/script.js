@@ -18,6 +18,7 @@ function personCard(m){
   if(valid){const img=document.createElement('img');img.className='person-photo';img.src=valid;img.alt=`Foto de ${m.nome}`;img.loading='lazy';img.referrerPolicy='no-referrer';img.onerror=placeholder;imageWrap.append(img,element('span','person-icon','CAARQ ✳'));}
   else placeholder();
   const content=element('div','person-info');content.append(element('h3','',m.nome),element('p','person-role',m.cargo));
+  if(m.coordenacao)content.append(element('p','person-coordenacao','Coordenação: '+m.coordenacao));
   if(m.apresentacao)content.append(element('p','person-bio',m.apresentacao));
   card.append(imageWrap,content);return card;
 }
@@ -43,7 +44,7 @@ async function load(){
     // Solicita explicitamente apenas gestões e integrantes publicados, sem login.
     const [gs,ms]=await Promise.all([
       client.from('caarq_gestoes').select('id,nome,ano_inicio,ano_fim,atual').eq('publicada',true).order('ano_inicio',{ascending:false}),
-      client.from('caarq_membros').select('id,gestao_id,nome,cargo,apresentacao,foto_url,ordem').eq('publicado',true).order('ordem',{ascending:true}).order('nome',{ascending:true})
+      client.from('caarq_membros').select('id,gestao_id,nome,cargo,coordenacao,apresentacao,foto_url,ordem').eq('publicado',true).order('ordem',{ascending:true}).order('nome',{ascending:true})
     ]);
     if(gs.error)throw gs.error;if(ms.error)throw ms.error;
     const gestoes=gs.data||[],members=ms.data||[];
