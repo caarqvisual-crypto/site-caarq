@@ -35,9 +35,12 @@ function makeCard(product){
  const title=n('h3','product-title',product.nome);
  const price=n('strong','product-price',fmtPrice(product.preco_centavos));
  const desc=n('p','product-desc',product.descricao||'Conheça mais detalhes deste produto.');
- const bottom=n('div','product-foot');const available=n('span','availability '+(product.status==='esgotado'?'sold-out':''),statusLabel[product.status]||product.status);
+ const bottom=n('div','product-foot');
+ const available=n('span','availability '+(product.status==='esgotado'?'sold-out':''),statusLabel[product.status]||product.status);
  const open=n('button','view-product','Ver detalhes ↗');open.type='button';open.addEventListener('click',()=>openProduct(product));
- bottom.append(available,open);body.append(meta,title,price,desc,bottom);card.append(visual,body);return card;
+ bottom.append(available,open);body.append(meta,title,price,desc);
+ if(storeConfig?.retirada_visivel!==false)body.append(n('p','product-pickup-note',storeConfig?.retirada_resumo||'Retirada presencial no CAARQ, ao lado da nova biblioteca.'));
+ body.append(bottom);card.append(visual,body);return card;
 }
 function renderProducts(){
  const term=el('searchInput').value.trim().toLocaleLowerCase('pt-BR');
@@ -61,6 +64,8 @@ function openProduct(product){
  el('dialogAvailability').textContent=statusLabel[product.status]||product.status;
  el('dialogDescription').textContent=product.descricao||'Mais informações disponíveis com o Centro Acadêmico.';
  el('dialogStock').textContent=product.estoque===null?'':`Estoque informado: ${product.estoque}`;
+ const pickup=el('dialogPickup');pickup.hidden=storeConfig?.retirada_visivel===false;
+ if(!pickup.hidden)el('dialogPickupSummary').textContent=storeConfig?.retirada_resumo||'Retirada presencial no CAARQ, ao lado da nova biblioteca.';
  const orderUrl=safeExternal(product.link_pedido)||safeExternal(storeConfig?.link_formulario);
  const order=el('dialogOrder');
  order.hidden=!orderUrl||product.status==='esgotado';
@@ -85,9 +90,34 @@ function openProduct(product){
  dialog.showModal();
 }
 el('dialogClose').addEventListener('click',()=>el('productDialog').close());
+el('dialogPickupLink').addEventListener('click',()=>el('productDialog').close());
 el('productDialog').addEventListener('click',ev=>{if(ev.target===el('productDialog'))el('productDialog').close();});
 el('searchInput').addEventListener('input',renderProducts);
 el('copyrightYear').textContent=new Date().getFullYear();
+function renderPickup(config){
+ const visible=config?.retirada_visivel!==false;
+ el('retirada').hidden=!visible;
+ el('introPickupLink').hidden=!visible;
+ if(!visible)return;
+ const fill=(id,key,fallback='')=>{el(id).textContent=config?.[key]||fallback;};
+ fill('pickupTitle','retirada_titulo','Onde retirar seu pedido?');
+ fill('pickupDescription','retirada_texto','Retire seu pedido presencialmente e venha conhecer o CAARQ!');
+ fill('pickupPlace','retirada_local','Centro Acadêmico de Arquivologia (CAARQ)');
+ fill('pickupReference','retirada_referencia','Ao lado da nova biblioteca · UEPB Campus V');
+ fill('pickupGuidance','retirada_orientacoes','Combine o horário de retirada com a equipe do CAARQ.');
+ fill('pickupHours','retirada_horario');
+ el('pickupHours').hidden=!config?.retirada_horario;
+ const links=[['pickupContact','retirada_contato_link','retirada_contato_rotulo','Falar com o C.A. ↗'],['pickupMap','retirada_mapa_link','retirada_mapa_rotulo','Ver localização ↗']];
+ for(const [id,key,label,fallback] of links){
+  const btn=el(id),url=safeExternal(config?.[key]);btn.hidden=!url;
+  if(url){btn.href=url;btn.textContent=(config?.[label]||fallback).replace(/↗\s*$/,'').trim()+' ↗';}
+ }
+ const img=safeImage(config?.retirada_foto_url);
+ el('pickupImageWrap').hidden=!img;
+ el('pickupFallback').hidden=!!img;
+ if(img){el('pickupImage').src=img;el('pickupImage').alt=config?.retirada_foto_alt||'Entrada e corredor da sala do Centro Acadêmico de Arquivologia';fill('pickupCaption','retirada_foto_legenda','Nossa sala · CAARQ');}
+}
+renderPickup(null);
 el('mobileNavButton').addEventListener('click',()=>{
  const opened=el('mainNav').classList.toggle('open');el('mobileNavButton').setAttribute('aria-expanded',String(opened));
 });
@@ -101,6 +131,7 @@ el('mobileNavButton').addEventListener('click',()=>{
   ]);
   if(p.error||f.error||c.error)throw Error();
   products=p.data||[];photos=f.data||[];storeConfig=c.data;
+  renderPickup(storeConfig);
   if(storeConfig){
    el('shopTitle').textContent=storeConfig.titulo||'Bem-vindos à LOCA!';
    el('shopDescription').textContent=storeConfig.subtitulo||'';

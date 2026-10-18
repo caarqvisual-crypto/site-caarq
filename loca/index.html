@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="icon" type="image/png" href="icone-loca.png">
-  <link rel="stylesheet" href="style.css?v=15-loca">
+  <link rel="stylesheet" href="style.css?v=19-retirada">
 </head>
 <body>
   <header class="site-header">
@@ -22,6 +22,7 @@
         <a href="../membros/">Membros</a>
         <a href="../projetos/">Projetos</a>
         <a class="nav-active" href="./" aria-current="page">LOCA</a>
+        <a href="#retirada">Onde retirar?</a>
         <a class="nav-admin" href="../admin/">Área dos Membros ↗</a>
       </div>
     </nav>
@@ -34,7 +35,7 @@
           <p class="eyebrow">LOCA · A lojinha do C.A.</p>
           <h1 id="shopTitle">Bem-vindos à <em>LOCA!</em></h1>
           <p id="shopDescription">Produtos de Arquivologia feitos para a nossa comunidade. E calma: LOCA é o nome da loja! 💜</p>
-          <div class="intro-actions"><a class="btn btn-primary" href="#catalogo">Explorar produtos ↓</a><a id="mainOrderButton" class="btn btn-outline" href="#catalogo" target="_blank" rel="noopener noreferrer" hidden>Fazer encomenda ↗</a></div>
+          <div class="intro-actions"><a class="btn btn-primary" href="#catalogo">Explorar produtos ↓</a><a class="btn btn-outline" href="#retirada" id="introPickupLink">Onde retirar? ↗</a><a id="mainOrderButton" class="btn btn-outline" href="#catalogo" target="_blank" rel="noopener noreferrer" hidden>Fazer encomenda ↗</a></div>
         </div>
         <div class="intro-emblem" aria-label="Marca da LOCA"><img src="logotipo-loca.png" alt="Logotipo da LOCA com a bolsinha"></div>
       </div>
@@ -48,6 +49,34 @@
         <div id="productGrid" class="products-grid" aria-live="polite"></div>
       </div>
     </section>
+    <section class="pickup-section" id="retirada" aria-labelledby="pickupTitle">
+      <div class="container pickup-layout">
+        <div class="pickup-info">
+          <p class="eyebrow">RETIRADA PRESENCIAL · LOCA</p>
+          <h2 id="pickupTitle">Vem buscar sua encomenda!</h2>
+          <p class="pickup-intro" id="pickupDescription">Os produtos da LOCA são retirados presencialmente no Centro Acadêmico de Arquivologia. Aproveite para conhecer nosso espaço!</p>
+          <div class="pickup-location">
+            <div class="pickup-pin" aria-hidden="true">⌖</div>
+            <div><strong id="pickupPlace">Centro Acadêmico de Arquivologia (CAARQ)</strong><p id="pickupReference">Ao lado da nova biblioteca · UEPB Campus V</p></div>
+          </div>
+          <p class="pickup-guidance" id="pickupGuidance">Após seu pedido, combine o dia e o horário de retirada com a equipe do CAARQ.</p>
+          <p class="pickup-hours" id="pickupHours" hidden></p>
+          <div class="pickup-actions">
+            <a class="btn btn-primary" id="pickupContact" href="#" target="_blank" rel="noopener noreferrer" hidden>Falar com o C.A. ↗</a>
+            <a class="btn btn-outline" id="pickupMap" href="#" target="_blank" rel="noopener noreferrer" hidden>Ver localização ↗</a>
+          </div>
+        </div>
+        <figure class="pickup-image-wrap" id="pickupImageWrap" hidden>
+          <img id="pickupImage" src="" alt="Entrada do Centro Acadêmico de Arquivologia" loading="lazy">
+          <figcaption id="pickupCaption">Nossa sala · CAARQ</figcaption>
+        </figure>
+        <div class="pickup-art" id="pickupFallback" aria-hidden="true">
+          <div class="pickup-art-line">CAARQ <span>✳</span></div>
+          <div class="pickup-art-symbol">↗</div>
+          <div class="pickup-art-bottom">NOSSA PORTA ESTÁ ABERTA<br>PARA VOCÊ CONHECER O C.A.</div>
+        </div>
+      </div>
+    </section>
     <section class="info-band"><div class="container info-grid"><div><span class="info-icon" aria-hidden="true">✳</span><h2>Feita pelo C.A.,<br>para a comunidade.</h2></div><p>A LOCA reúne produtos e materiais para quem vive a Arquivologia. Quando as encomendas estiverem abertas, você verá aqui o formulário oficial da gestão.</p></div></section>
   </main>
   <footer class="footer"><div class="container footer-flex"><div><strong>LOCA <span>✳</span></strong><small>A lojinha do C.A. · CAARQ Bríggida Lourenço · UEPB Campus V</small></div><a href="../">← Voltar ao site do CAARQ</a><span>© <span id="copyrightYear"></span></span></div></footer>
@@ -56,9 +85,9 @@
     <div class="dialog-shell">
       <button type="button" class="dialog-close" id="dialogClose" aria-label="Fechar informações do produto">✕</button>
       <div class="dialog-gallery"><div class="dialog-hero-photo" id="dialogMainPhoto"></div><div id="dialogThumbnails" class="dialog-thumbnails"></div></div>
-      <div class="dialog-copy"><p class="eyebrow" id="dialogCategory"></p><h2 id="dialogTitle"></h2><strong class="dialog-price" id="dialogPrice"></strong><span id="dialogAvailability" class="dialog-status"></span><p id="dialogDescription"></p><p id="dialogStock" class="dialog-stock"></p><a class="btn btn-primary" id="dialogOrder" href="#" target="_blank" rel="noopener noreferrer" hidden>Encomendar este produto ↗</a><p id="dialogNoOrder" class="dialog-note">Aguarde a abertura do formulário de pedidos pelo CAARQ.</p></div>
+      <div class="dialog-copy"><p class="eyebrow" id="dialogCategory"></p><h2 id="dialogTitle"></h2><strong class="dialog-price" id="dialogPrice"></strong><span id="dialogAvailability" class="dialog-status"></span><p id="dialogDescription"></p><p id="dialogStock" class="dialog-stock"></p><div class="dialog-pickup" id="dialogPickup" hidden><span id="dialogPickupSummary"></span><a id="dialogPickupLink" href="#retirada">Onde retirar? ↗</a></div><a class="btn btn-primary" id="dialogOrder" href="#" target="_blank" rel="noopener noreferrer" hidden>Encomendar este produto ↗</a><p id="dialogNoOrder" class="dialog-note">Aguarde a abertura do formulário de pedidos pelo CAARQ.</p></div>
     </div>
   </dialog>
-  <script type="module" src="script.js?v=15-loca"></script>
+  <script type="module" src="script.js?v=19-retirada"></script>
 </body>
 </html>

@@ -8,3 +8,32 @@
 .brand-bag{transform:none;overflow:hidden;background:#401466}.brand-bag img{display:block;width:100%;height:100%;object-fit:cover;border-radius:8px}
 
 .intro-emblem img{object-fit:contain;object-position:center;height:240px;background:#401460}
+
+/* CAARQ V19 — seção de retirada, totalmente gerenciada pelo Admin */
+.pickup-section{padding:88px 0;background:linear-gradient(145deg,#f8f0fb 0%,#fffdf8 70%);border-top:1px solid var(--line);scroll-margin-top:95px}
+.pickup-layout{display:grid;grid-template-columns:1.13fr .87fr;gap:clamp(25px,5vw,75px);align-items:center}
+.pickup-info h2{max-width:650px;margin:0 0 20px;overflow-wrap:anywhere}
+.pickup-intro{font-size:15px;line-height:1.9;color:#5c4c66;max-width:600px;margin:0 0 25px;white-space:pre-line}
+.pickup-location{display:flex;gap:15px;align-items:flex-start;border:1px solid #dfcde9;border-radius:15px;background:#fff;padding:20px 22px;max-width:650px;box-shadow:0 9px 30px #3412470a}
+.pickup-pin{border-radius:14px;background:var(--yellow);color:var(--purple);font-weight:900;font-size:26px;display:grid;place-items:center;width:48px;height:48px;flex-shrink:0}
+.pickup-location strong{display:block;color:var(--purple);font-size:15px;line-height:1.5}
+.pickup-location p{color:#6b5a75;margin:5px 0 0;font-size:13px;line-height:1.65;white-space:pre-line}
+.pickup-guidance,.pickup-hours{margin:19px 0 0;color:#675770;line-height:1.8;font-size:13px;white-space:pre-line}
+.pickup-hours{border-left:3px solid var(--yellow);padding-left:14px}
+.pickup-actions{margin-top:22px;display:flex;flex-wrap:wrap;gap:10px}
+.pickup-image-wrap{margin:0;position:relative;overflow:hidden;border-radius:21px;box-shadow:0 26px 65px #40194f20;background:#eedbf4}
+.pickup-image-wrap img{display:block;width:100%;max-height:470px;min-height:260px;object-fit:cover}
+.pickup-image-wrap figcaption{background:#40194ff0;color:white;font-size:12px;padding:13px 19px;line-height:1.5}
+.pickup-art{min-height:360px;background:var(--purple);border-radius:22px;padding:28px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 25px 60px #40194f2b;overflow:hidden}
+.pickup-art-line{display:flex;justify-content:space-between;align-items:center;color:white;font-size:22px;font-weight:900;letter-spacing:.08em}
+.pickup-art-line span{color:var(--yellow);font-size:36px}
+.pickup-art-symbol{text-align:center;color:var(--yellow);font-size:160px;font-weight:900;line-height:1}
+.pickup-art-bottom{color:#f6e8f8;font-size:13px;line-height:1.5;font-weight:800;letter-spacing:.1em}
+.product-pickup-note{font-size:11px;color:#655472;line-height:1.5;margin:5px 0 0;padding:8px 0 2px;border-top:1px dashed #e3d6e8}
+.dialog-pickup{margin:14px 0 8px;padding:12px 14px;background:#f8f1fb;border-left:3px solid var(--yellow);display:grid;gap:5px;font-size:12px;color:#5d4a68}
+.dialog-pickup a{color:var(--purple);font-weight:800;text-decoration:underline;text-underline-offset:3px}
+@media(max-width:800px){.pickup-layout{grid-template-columns:1fr}.pickup-section{padding:62px 0}.pickup-art{min-height:260px}.pickup-art-symbol{font-size:90px}}
+@media(max-width:650px){.pickup-location{padding:16px}.pickup-info h2{font-size:36px}.pickup-image-wrap img{min-height:200px;max-height:380px}}
+
+/* Zoom discreto apenas quando houver hover, sem prejudicar quem prefere menos movimento. */
+@media(hover:hover) and (prefers-reduced-motion:no-preference){.pickup-image-wrap img{transition:transform .4s ease}.pickup-image-wrap:hover img{transform:scale(1.025)}}
