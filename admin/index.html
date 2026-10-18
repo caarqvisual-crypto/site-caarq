@@ -114,6 +114,14 @@ body{overflow-x:hidden}
 <style id="caarq-v12-fallback">.chat-badge{display:inline-flex;background:#be285a;color:#fff;border-radius:22px;padding:2px 7px;font-size:11px;font-weight:900}.chat-badge[hidden]{display:none!important}.chat-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:15px 0}.chat-tab{border:1px solid #dec9e4;background:white;color:#40194f;border-radius:7px;padding:11px;font-size:12px;font-weight:800}.chat-tab.selected{background:#40194f;color:white}.chat-contact-photo{width:44px!important;height:44px!important;flex:0 0 44px!important;border-radius:50%!important;aspect-ratio:1/1;position:relative;overflow:visible}.chat-contact-photo img,.chat-peer-photo img{width:100%!important;height:100%!important;border-radius:50%!important;object-fit:cover!important;object-position:center!important;clip-path:circle(50%)}.chat-contact-name{flex:1;min-width:0}.chat-group-create{padding:14px 0;border-top:1px solid #e8ddeb;margin-top:14px}.chat-group-create input[type=text]{max-width:100%;padding:8px;border:1px solid #ded0e8}.chat-member-checks{display:grid;gap:5px;max-height:160px;overflow:auto;padding:8px;border:1px solid #e8ddeb;border-radius:8px}.chat-member-checks label{font-size:12px}.chat-group-edit{padding:15px;background:#faf4fc}.chat-contact-photo .chat-presence-dot{z-index:2}</style>
 <script src="../theme-boot.js?v=20-bomdia" data-caarq-page="admin"></script>
 <style>.dashboard-head #dashboardGreeting{font-size:clamp(26px,3vw,43px);line-height:1.14;letter-spacing:-.045em;overflow-wrap:break-word}</style>
+<style id="caarq-v21-maintenance-admin-css">
+.maintenance-status{padding:14px 16px;margin:8px 0 20px;border-radius:12px;background:#f1e7f7;font-weight:700;color:#3d1956}
+.maintenance-status.is-active{background:#fff1d0;color:#743a03}
+.maintenance-toggle{display:flex;align-items:center;gap:10px;margin:12px 0 20px;padding:14px;background:#f8f4fa;border:1px solid #e5d9ec;border-radius:12px}
+.maintenance-toggle input{width:22px;height:22px;accent-color:#5b2a86;flex:none}
+#maintenanceManager .form-actions{flex-wrap:wrap}
+#maintenanceManager .form-actions a.logout-button{display:inline-flex;align-items:center}
+</style>
 </head>
 <body>
   <div class="layout">
@@ -167,9 +175,42 @@ body{overflow-x:hidden}
           <article class="tile tile-ready notification-tile" id="notificationTile"><div class="tile-icon">♧</div><h3>Central de Notificações <span id="notificationTileBadge" class="chat-badge" hidden>0</span></h3><p>Veja as conversas privadas e os grupos com mensagens que você ainda não leu.</p><button id="openNotifications" type="button" class="tile-action">Ver avisos e mensagens →</button></article>
           <article class="tile tile-ready chat-tile" id="chatTile"><div class="tile-icon">✉</div><h3>Mensagens <span id="chatUnreadBadge" class="chat-badge" hidden>0</span></h3><p>Converse em particular, participe do chat geral e dos grupos da equipe.</p><button id="openChat" type="button" class="tile-action">Abrir minhas mensagens →</button></article>
           <article class="tile tile-ready access-tile" id="accessTile" hidden><div class="tile-icon">♙</div><h3>Gerenciar acessos</h3><p>Cadastre contas, forneça uma senha provisória e defina quem pode editar cada área do site.</p><button id="openAccess" type="button" class="tile-action">Administrar as contas →</button></article>
+          <article class="tile tile-ready access-tile" id="maintenanceTile" hidden><div class="tile-icon">⚙</div><h3>Modo manutenção</h3><p>Exclusivo da Administração Geral: pause a navegação pública e mostre um aviso personalizado.</p><button id="openMaintenance" type="button" class="tile-action">Controlar modo manutenção →</button></article>
           <article class="tile tile-ready access-tile" id="auditTile" hidden><div class="tile-icon">▤</div><h3>Histórico de atividades</h3><p>Consulte quem criou contas, alterou permissões ou suspendeu acessos.</p><button id="openAudit" type="button" class="tile-action">Ver histórico →</button></article>
         </div>
 
+
+
+        <section id="maintenanceManager" class="members-manager" hidden aria-labelledby="maintenanceTitle">
+          <div class="manager-top">
+            <div><p class="kicker">ADMINISTRAÇÃO GERAL · CONTROLE EXCLUSIVO</p><h3 id="maintenanceTitle">Modo manutenção do site</h3><p>Quando ativado, visitantes verão uma página temporária em vez da navegação pública. O CAARQ Admin continua disponível para desativar.</p></div>
+            <button type="button" id="closeMaintenance" class="logout-button">← Voltar ao painel</button>
+          </div>
+          <div id="maintenanceFeedback" class="message" role="status" aria-live="polite" hidden></div>
+          <div class="manager-block">
+            <div class="block-head"><h4>1. Disponibilidade das páginas públicas</h4><p>Essa opção é exclusiva da Administração Geral, inclusive no banco de dados. Não afeta seu acesso ao Admin.</p></div>
+            <form id="maintenanceForm" class="edit-form">
+              <div class="maintenance-status" id="maintenanceStatus" aria-live="polite">Consultando status…</div>
+              <label class="check-label maintenance-toggle"><input type="checkbox" id="maintenanceEnabled"> <strong>Ativar modo manutenção</strong> — esconder temporariamente o conteúdo das páginas públicas</label>
+              <div class="form-grid">
+                <div><label for="maintenanceTitleInput">Título mostrado aos visitantes</label><input id="maintenanceTitleInput" maxlength="120" required value="Estamos cuidando do nosso espaço!"></div>
+                <div><label for="maintenanceReturn">Previsão ou orientação (opcional)</label><input id="maintenanceReturn" maxlength="160" placeholder="Voltamos em breve"></div>
+              </div>
+              <label for="maintenanceMessage">Mensagem de manutenção</label>
+              <textarea id="maintenanceMessage" maxlength="750" rows="5" required>O CAARQ está passando por alguns ajustes para oferecer uma experiência ainda melhor. Agradecemos a compreensão e esperamos você em breve!</textarea>
+              <div class="form-grid">
+                <div><label for="maintenanceContactLabel">Texto do botão externo (opcional)</label><input id="maintenanceContactLabel" maxlength="70" placeholder="Acompanhe nosso Instagram"></div>
+                <div><label for="maintenanceContactUrl">Link do botão (HTTPS, opcional)</label><input id="maintenanceContactUrl" type="url" placeholder="https://..."></div>
+              </div>
+              <p class="bottom-note">⚠️ Este modo mostra uma tela de manutenção por JavaScript; <strong>não despublica</strong> o GitHub Pages nem impede o acesso técnico a arquivos estáticos. Para suspensão real da hospedagem, use as configurações do GitHub Pages.</p>
+              <div class="form-actions">
+                <button id="maintenanceSave" type="submit" class="primary-button">Salvar configurações ↗</button>
+                <button id="maintenanceRefresh" type="button" class="logout-button">Recarregar status</button>
+                <a id="maintenancePreview" class="logout-button" href="../manutencao/?preview=1" target="_blank" rel="noopener noreferrer">Pré-visualizar aviso ↗</a>
+              </div>
+            </form>
+          </div>
+        </section>
 
         <section id="accessManager" class="members-manager" hidden aria-labelledby="accessTitle">
           <div class="manager-top"><div><p class="kicker">ADMINISTRAÇÃO GERAL · CONTAS PRIVADAS</p><h3 id="accessTitle">Gerenciar acessos</h3><p>Crie contas e decida o que cada integrante poderá editar. As regras também são verificadas no Supabase.</p></div><button type="button" id="closeAccess" class="logout-button">← Voltar ao painel</button></div>

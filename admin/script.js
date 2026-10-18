@@ -72,6 +72,7 @@ async function checkAccess() {
   el('newsTile').hidden = !(currentRole === 'admin' || access.pode_noticias === true);
   el('accessTile').hidden = currentRole !== 'admin';
   el('auditTile').hidden = currentRole !== 'admin';
+  el('maintenanceTile').hidden = currentRole !== 'admin';
   if (canEditMembers()) await loadData();
   el('accountEmail').textContent = user.email || 'Membro autorizado';
   show('dashboardView');
@@ -141,6 +142,7 @@ async function logout() {
   currentRole = null;
   currentPermissions={pode_membros:false,pode_projetos:false,pode_aparencia:false,pode_loca:false,pode_loca_precos:false,pode_loca_visual:false,pode_criar_grupos:false,pode_noticias:false,trocar_senha:false};
   el('accessManager').hidden = true;
+  el('maintenanceManager').hidden = true;
   el('membersManager').hidden = true;
   el('projectsManager').hidden = true;
   el('appearanceManager').hidden = true;
@@ -700,8 +702,7 @@ function updateDashboardGreeting(){
  try{hour=Number(new Intl.DateTimeFormat('pt-BR',{hour:'2-digit',hourCycle:'h23',timeZone:'America/Fortaleza'}).format(new Date()));}catch{}
  const salutation=hour>=5&&hour<12?'Bom dia':hour>=12&&hour<18?'Boa tarde':'Boa noite';
  const display=ownProfile?.nome_exibicao?.trim()||ownProfile?.apelido?.trim()||'';
- const firstName=display?display.split(/\s+/)[0].slice(0,48):'integrante';
- target.textContent=`${salutation} de volta, ${firstName}!`;
+ target.textContent=`${salutation}! Bem-vindo(a) de volta, ${display ? display.slice(0,100) : "integrante"}!`;
 }
 // Atualizar também quando o integrante volta à aba após a mudança de período.
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&currentRole)updateDashboardGreeting();});
@@ -2184,3 +2185,88 @@ try {
 }
 
 
+
+
+
+// CAARQ V21 — modo manutenção: a interface é exclusiva da Administração Geral.
+// SEGURANÇA: a tabela possui RLS de UPDATE com caarq_e_admin_geral().
+const maintenanceFields='id,ativo,titulo,mensagem,previsao,contato_texto,contato_url';
+let maintenanceIsSaving=false;
+let maintenanceCurrent=false;
+function maintenanceNotice(message,success=false){notice('maintenanceFeedback',message,success);}
+function maintenanceStatusRender(){
+  const box=el('maintenanceStatus');
+  box.textContent=maintenanceCurrent?'⚠ MODO MANUTENÇÃO ATIVO — visitantes veem o aviso.':'✓ SITE PÚBLICO DISPONÍVEL — páginas normais visíveis.';
+  box.classList.toggle('is-active',maintenanceCurrent);
+}
+async function maintenanceLoad(){
+  if(currentRole!=='admin')return;
+  maintenanceNotice('');
+  const {data,error}=await client.from('caarq_manutencao').select(maintenanceFields).eq('id',1).single();
+  if(error||!data){maintenanceNotice('Não foi possível carregar o status. Confirme se o SQL da V21 foi executado.');return;}
+  maintenanceCurrent=data.ativo===true;
+  el('maintenanceEnabled').checked=maintenanceCurrent;
+  el('maintenanceTitleInput').value=data.titulo||'Estamos cuidando do nosso espaço!';
+  el('maintenanceMessage').value=data.mensagem||'';
+  el('maintenanceReturn').value=data.previsao||'';
+  el('maintenanceContactLabel').value=data.contato_texto||'';
+  el('maintenanceContactUrl').value=data.contato_url||'';
+  maintenanceStatusRender();
+}
+function maintenanceHideOthers(){
+  for(const id of ['membersManager','projectsManager','appearanceManager','profileManager','accessManager','notificationCenter','chatManager','auditManager','locaManager','newsManager']){
+    if(el(id))el(id).hidden=true;
+  }
+}
+el('openMaintenance').addEventListener('click',async()=>{
+  if(currentRole!=='admin')return;
+  maintenanceHideOthers();
+  el('maintenanceManager').hidden=false;
+  await maintenanceLoad();
+  el('maintenanceManager').scrollIntoView({behavior:'smooth',block:'start'});
+});
+el('closeMaintenance').addEventListener('click',()=>{
+  el('maintenanceManager').hidden=true;
+  el('dashboardView').scrollIntoView({behavior:'smooth',block:'start'});
+});
+el('maintenanceRefresh').addEventListener('click',maintenanceLoad);
+// Qualquer outra seção do painel deve fechar o editor de manutenção.
+for(const id of ['openProfile','openMembers','openProjects','openAppearance','openAccess','openNotifications','openNotificationsTop','openChat','openAudit','openLoca','openNews']){
+  el(id)?.addEventListener('click',()=>{el('maintenanceManager').hidden=true;},{capture:true});
+}
+function maintenanceHttps(raw){
+  if(!raw.trim())return null;
+  try{const url=new URL(raw.trim());if(url.protocol!=='https:')throw new Error();return url.href;}
+  catch{throw new Error('O botão externo precisa de um link HTTPS válido.');}
+}
+el('maintenanceForm').addEventListener('submit',async(event)=>{
+  event.preventDefault();
+  if(currentRole!=='admin'||maintenanceIsSaving)return;
+  maintenanceNotice('');
+  const enabled=el('maintenanceEnabled').checked;
+  const title=el('maintenanceTitleInput').value.trim();
+  const message=el('maintenanceMessage').value.trim();
+  const previsao=el('maintenanceReturn').value.trim();
+  const contato_texto=el('maintenanceContactLabel').value.trim();
+  let contato_url=null;
+  try{contato_url=maintenanceHttps(el('maintenanceContactUrl').value);}catch(e){maintenanceNotice(e.message);return;}
+  if(title.length<3||message.length<10){maintenanceNotice('Informe um título (mínimo de 3 caracteres) e uma mensagem (mínimo de 10 caracteres).');return;}
+  if(Boolean(contato_url)!==Boolean(contato_texto)){maintenanceNotice('Preencha tanto o texto quanto o link do botão externo, ou deixe os dois vazios.');return;}
+  if(enabled&&!maintenanceCurrent){
+    const okay=confirm('ATENÇÃO: ativar a manutenção vai substituir as páginas públicas por um aviso para os visitantes. O painel Admin continuará acessível. Deseja realmente ativar?');
+    if(!okay){el('maintenanceEnabled').checked=false;return;}
+  }
+  maintenanceIsSaving=true;el('maintenanceSave').disabled=true;
+  try{
+    const {data,error}=await client.from('caarq_manutencao').update({
+      ativo:enabled,titulo:title,mensagem:message,previsao,contato_texto,contato_url,atualizado_em:new Date().toISOString()
+    }).eq('id',1).select('id,ativo').single();
+    if(error||!data)throw error||new Error('Nenhuma configuração foi alterada.');
+    maintenanceCurrent=data.ativo===true;
+    maintenanceStatusRender();
+    maintenanceNotice(maintenanceCurrent
+      ?'Modo manutenção ATIVADO. Abra o endereço público em uma janela anônima para conferir o aviso.'
+      :'Modo manutenção DESATIVADO. O site público voltou a ficar disponível.',true);
+  }catch(e){console.error('Manutenção CAARQ',e);maintenanceNotice('Não foi possível salvar. Verifique sua permissão de Administração Geral e o SQL da V21.');}
+  finally{maintenanceIsSaving=false;el('maintenanceSave').disabled=false;}
+});
