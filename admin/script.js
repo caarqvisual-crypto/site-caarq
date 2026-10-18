@@ -76,7 +76,8 @@ async function checkAccess() {
   el('accountEmail').textContent = user.email || 'Membro autorizado';
   show('dashboardView');
   void chatActivate(user);
-  void loadOwnProfile(user);
+  await loadOwnProfile(user);
+  updateDashboardGreeting();
 }
 
 el('togglePassword').addEventListener('click', () => {
@@ -625,6 +626,7 @@ async function saveAppearanceData(changes,uploadedFiles){
   const {data,error}=await client.from('caarq_aparencia').update({...changes,atualizado_em:new Date().toISOString()}).eq('id',1).select().single();
   if(error)throw error;
   appearanceSaved={...appearanceDefaults,...data};appearanceFill(appearanceSaved);
+  try{localStorage.setItem('caarq:v20:appearance',JSON.stringify(appearanceSaved));}catch{}
   appearanceFeedback('Aparência publicada! Atualize a página inicial do CAARQ para conferir.',true);
  }catch(error){console.error('Salvar aparência',error);appearanceFeedback('Não foi possível salvar a aparência. Confira sua autorização e o SQL da versão 6.');}
  finally{b.disabled=false;b.textContent='Publicar aparência ↗';}
@@ -690,9 +692,24 @@ function profileImage(target, url){
 function clearProfilePreviewObject(){
  if(profilePreviewObjectUrl){ URL.revokeObjectURL(profilePreviewObjectUrl); profilePreviewObjectUrl=null; }
 }
+function updateDashboardGreeting(){
+ const target=el('dashboardGreeting');
+ if(!target)return;
+ // A saudação segue o horário da Paraíba, inclusive para quem acessar de outra cidade.
+ let hour=new Date().getHours();
+ try{hour=Number(new Intl.DateTimeFormat('pt-BR',{hour:'2-digit',hourCycle:'h23',timeZone:'America/Fortaleza'}).format(new Date()));}catch{}
+ const salutation=hour>=5&&hour<12?'Bom dia':hour>=12&&hour<18?'Boa tarde':'Boa noite';
+ const display=ownProfile?.nome_exibicao?.trim()||ownProfile?.apelido?.trim()||'';
+ const firstName=display?display.split(/\s+/)[0].slice(0,48):'integrante';
+ target.textContent=`${salutation} de volta, ${firstName}!`;
+}
+// Atualizar também quando o integrante volta à aba após a mudança de período.
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&currentRole)updateDashboardGreeting();});
+setInterval(()=>{if(currentRole)updateDashboardGreeting();},60000);
 function profileCard(){
  const name=ownProfile?.nome_exibicao?.trim()||ownProfile?.apelido?.trim()||'Meu perfil CAARQ';
- el('accountAlias').textContent=name;
+  el('accountAlias').textContent=name;
+  updateDashboardGreeting();
  el('profilePreviewName').textContent=name;
  el('profilePreviewEmail').textContent=ownProfileUser?.email||'Conta autorizada';
  el('profileRoleLabel').textContent=roleNames[currentRole]||'Membro do CAARQ';
