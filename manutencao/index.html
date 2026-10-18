@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#40194f">
+  <title>CAARQ · Em manutenção</title>
+  <link rel="icon" href="../logo-caarq.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root{color-scheme:light;--p:#40194f;--y:#ffd541;--text:#352640}
+    *{box-sizing:border-box}body{margin:0;min-height:100svh;font-family:Montserrat,Arial,sans-serif;background:#f9f5fc;color:var(--text);display:grid;place-items:center;padding:30px 18px}
+    .panel{width:min(720px,100%);background:#fff;border:1px solid #ece2f1;border-radius:28px;overflow:hidden;box-shadow:0 22px 85px rgba(46,19,68,.13)}
+    .top{background:var(--p);color:#fff;padding:28px 34px;display:flex;align-items:center;gap:14px}
+    .top img{width:59px;height:59px;object-fit:contain;background:#fff;border-radius:16px;padding:5px}
+    .brand{font-size:16px;font-weight:900;letter-spacing:.04em}.brand small{display:block;color:#e7d2ee;font-size:11px;margin-top:5px;font-weight:600}
+    .content{padding:clamp(25px,5vw,58px)}.icon{width:58px;height:58px;border-radius:18px;background:#f3e8fa;display:grid;place-items:center;color:var(--p);font-size:29px;margin-bottom:24px}
+    .eyebrow{font-size:11px;letter-spacing:.17em;font-weight:900;color:#654172;text-transform:uppercase}
+    h1{font-size:clamp(28px,5vw,44px);letter-spacing:-.045em;line-height:1.1;margin:12px 0 22px}p{line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere;color:#67586c}
+    .return{margin:18px 0 0;font-weight:700;color:#493252}.btn{display:inline-flex;align-items:center;background:var(--p);padding:13px 19px;border-radius:11px;color:white;text-decoration:none;font-weight:800;font-size:13px;margin-top:20px}
+    .bottom{border-top:1px solid #eee6f2;padding:18px clamp(25px,5vw,58px);display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap;font-size:12px;color:#76667e}
+    .bottom a{color:#604177;text-decoration:underline}a:focus-visible{outline:3px solid #c18be0;outline-offset:4px}
+  </style>
+</head>
+<body>
+  <main class="panel">
+    <header class="top"><img src="../logo-caarq.png" alt="Logo do CAARQ"><div class="brand">CAARQ · BRÍGGIDA LOURENÇO<small>CENTRO ACADÊMICO DE ARQUIVOLOGIA · UEPB V</small></div></header>
+    <section class="content">
+      <div class="icon" aria-hidden="true">✳</div>
+      <span class="eyebrow">Aviso institucional</span>
+      <h1 id="noticeTitle">Estamos cuidando do nosso espaço!</h1>
+      <p id="noticeMessage">Estamos realizando alguns ajustes para receber você novamente em breve. Agradecemos a compreensão!</p>
+      <p class="return" id="noticeReturn" hidden></p>
+      <a id="noticeContact" class="btn" hidden rel="noopener noreferrer" target="_blank"></a>
+    </section>
+    <footer class="bottom"><span>Memória · Acesso · Participação</span><a href="../admin/">Acesso da equipe autorizada ↗</a></footer>
+  </main>
+  <script>
+    (async function(){
+      const base='https://aeipjioeqfcuqbacbcym.supabase.co/rest/v1/caarq_manutencao?select=ativo,titulo,mensagem,previsao,contato_texto,contato_url&id=eq.1';
+      const apiKey='sb_publishable_isTW4KzTw4bA7m82awH0BA_oG98M7qt';
+      const preview=new URLSearchParams(location.search).get('preview')==='1';
+      const abort=new AbortController();const t=setTimeout(()=>abort.abort(),6500);
+      try{
+        const response=await fetch(base,{headers:{apikey:apiKey},cache:'no-store',signal:abort.signal});
+        if(!response.ok)throw new Error('status '+response.status);
+        const data=(await response.json())?.[0];
+        if(!data)return;
+        if(data.ativo!==true&&!preview){location.replace('../');return;}
+        document.getElementById('noticeTitle').textContent=data.titulo||'Estamos cuidando do nosso espaço!';
+        document.getElementById('noticeMessage').textContent=data.mensagem||'Voltamos em breve!';
+        const returnText=document.getElementById('noticeReturn');
+        if(data.previsao){returnText.textContent=data.previsao;returnText.hidden=false;}
+        let url=null;try{const u=new URL(data.contato_url);if(u.protocol==='https:')url=u.href;}catch{}
+        if(url&&data.contato_texto){const link=document.getElementById('noticeContact');link.href=url;link.textContent=data.contato_texto;link.hidden=false;}
+      }catch(err){console.warn('CAARQ: aviso temporariamente indisponível',err);}
+      finally{clearTimeout(t);}
+    })();
+  </script>
+</body>
+</html>
