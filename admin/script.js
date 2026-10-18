@@ -1899,6 +1899,7 @@ async function locaLoad(){
     if(p.error||f.error||c.error)throw Error();
     locaProducts=p.data||[];locaPhotos=f.data||[];locaConfig=c.data;
     if(locaConfig&&locaCanVisual()){
+      locaFillPickupForm(locaConfig);
       el('locaTitle').value=locaConfig.titulo||'';
       el('locaSubtitle').value=locaConfig.subtitulo||'';
       el('locaActionTitle').value=locaConfig.texto_botao||'';
@@ -1979,6 +1980,62 @@ el('locaProductForm').addEventListener('submit',async(event)=>{
   }catch(error){locaNotice(error.message||'Falha ao salvar produto.');}
   finally{btn.disabled=false;}
 });
+const locaPickupDefaults={
+ retirada_visivel:true,retirada_titulo:'Onde retirar seu pedido?',
+ retirada_resumo:'Retirada presencial no CAARQ, ao lado da nova biblioteca.',
+ retirada_texto:'As compras da LOCA são retiradas no Centro Acadêmico de Arquivologia. Aproveite para conhecer nosso espaço e nossa equipe!',
+ retirada_local:'Centro Acadêmico de Arquivologia (CAARQ)',
+ retirada_referencia:'Ao lado da nova biblioteca · UEPB Campus V',
+ retirada_orientacoes:'Após realizar o pedido, combine o dia e o horário de retirada com a equipe do CAARQ.',
+ retirada_horario:'',retirada_contato_rotulo:'Falar com o C.A.',
+ retirada_mapa_rotulo:'Ver localização',retirada_foto_legenda:'Entrada do CAARQ, ao lado da nova biblioteca',
+ retirada_foto_alt:'Fotografia do corredor e da entrada da sala do Centro Acadêmico de Arquivologia, junto à área arborizada'
+};
+function locaFillPickupForm(c){
+  const fields={locaPickupTitle:'retirada_titulo',locaPickupSummary:'retirada_resumo',
+   locaPickupDescription:'retirada_texto',locaPickupPlace:'retirada_local',
+   locaPickupReference:'retirada_referencia',locaPickupGuidance:'retirada_orientacoes',
+   locaPickupHours:'retirada_horario',locaPickupContactLabel:'retirada_contato_rotulo',
+   locaPickupContactLink:'retirada_contato_link',locaPickupMapLabel:'retirada_mapa_rotulo',
+   locaPickupMapLink:'retirada_mapa_link',locaPickupCaption:'retirada_foto_legenda',
+   locaPickupAlt:'retirada_foto_alt'};
+  for(const [input,key] of Object.entries(fields))el(input).value=c[key]??locaPickupDefaults[key]??'';
+  el('locaPickupVisible').checked=c.retirada_visivel!==false;
+  const preview=el('locaPickupPhotoPreview'),url=c.retirada_foto_url;
+  preview.hidden=!url;if(url&&/^https:\/\//.test(url))preview.src=url;else preview.removeAttribute('src');
+  el('locaPickupRemovePhoto').checked=false;
+}
+function locaPickupPayload(){
+  const text=(id,max)=>el(id).value.trim().slice(0,max);
+  return {
+   retirada_visivel:el('locaPickupVisible').checked,
+   retirada_titulo:text('locaPickupTitle',120)||locaPickupDefaults.retirada_titulo,
+   retirada_resumo:text('locaPickupSummary',200)||locaPickupDefaults.retirada_resumo,
+   retirada_texto:text('locaPickupDescription',800)||locaPickupDefaults.retirada_texto,
+   retirada_local:text('locaPickupPlace',180)||locaPickupDefaults.retirada_local,
+   retirada_referencia:text('locaPickupReference',300)||locaPickupDefaults.retirada_referencia,
+   retirada_orientacoes:text('locaPickupGuidance',800)||locaPickupDefaults.retirada_orientacoes,
+   retirada_horario:text('locaPickupHours',300),
+   retirada_contato_rotulo:text('locaPickupContactLabel',60)||locaPickupDefaults.retirada_contato_rotulo,
+   retirada_contato_link:locaHttpUrl(el('locaPickupContactLink').value),
+   retirada_mapa_rotulo:text('locaPickupMapLabel',60)||locaPickupDefaults.retirada_mapa_rotulo,
+   retirada_mapa_link:locaHttpUrl(el('locaPickupMapLink').value),
+   retirada_foto_legenda:text('locaPickupCaption',180)||locaPickupDefaults.retirada_foto_legenda,
+   retirada_foto_alt:text('locaPickupAlt',260)||locaPickupDefaults.retirada_foto_alt
+  };
+}
+el('locaPickupPhoto').addEventListener('change',event=>{
+ const file=event.target.files[0];
+ if(!file)return;
+ if(!locaFileOk(file)){locaNotice('A foto deve ser PNG, JPEG ou WebP com até 5 MB.');event.target.value='';return;}
+ const img=el('locaPickupPhotoPreview');const localUrl=URL.createObjectURL(file);
+ img.onload=()=>URL.revokeObjectURL(localUrl);img.src=localUrl;img.hidden=false;
+ el('locaPickupRemovePhoto').checked=false;
+});
+el('locaPickupRemovePhoto').addEventListener('change',event=>{
+ if(event.target.checked){el('locaPickupPhoto').value='';el('locaPickupPhotoPreview').hidden=true;}
+ else if(locaConfig){const old=locaConfig.retirada_foto_url, preview=el('locaPickupPhotoPreview'); preview.hidden=!old;if(old)preview.src=old;else preview.removeAttribute('src');}
+});
 el('locaConfigForm').addEventListener('submit',async event=>{
   event.preventDefault();if(!locaCanVisual())return;
   const btn=el('locaSaveConfig');btn.disabled=true;locaNotice('');
@@ -1987,14 +2044,20 @@ el('locaConfigForm').addEventListener('submit',async event=>{
     let banner=locaConfig?.banner_url||'/site-caarq/loca/banner-loca.png';
     const selected=el('locaBannerImage').files[0];
     if(selected){const uploaded=await locaUpload(selected,'banners');banner=uploaded.url;}
+    const pickup=locaPickupPayload();
+    const pickupFile=el('locaPickupPhoto').files[0];
+    if(pickupFile){
+      const uploaded=await locaUpload(pickupFile,'banners/retirada');
+      pickup.retirada_foto_url=uploaded.url;
+    }else pickup.retirada_foto_url=el('locaPickupRemovePhoto').checked?null:(locaConfig?.retirada_foto_url||null);
     const {error}=await client.from('caarq_loca_config').update({
       titulo:el('locaTitle').value.trim(),subtitulo:el('locaSubtitle').value.trim(),
       banner_url:banner,link_formulario:link,texto_botao:el('locaActionTitle').value.trim()||'Fazer encomenda',
-      atualizado_em:new Date().toISOString()
+      ...pickup,atualizado_em:new Date().toISOString()
     }).eq('id',1).select('id').single();
-    if(error)throw Error('Não foi possível salvar o banner e as informações.');
-    locaNotice('Aparência da LOCA atualizada! Confira a página pública.',true);
-    el('locaBannerImage').value='';await locaLoad();
+    if(error)throw Error('Não foi possível salvar as configurações. Confira se executou o SQL da V19 e se tem permissão para editar a LOCA.');
+    locaNotice('Informações da LOCA e retirada atualizadas! Confira a página pública.',true);
+    el('locaBannerImage').value='';el('locaPickupPhoto').value='';await locaLoad();
   }catch(error){locaNotice(error.message||'Erro ao salvar a LOCA.');}
   finally{btn.disabled=false;}
 });

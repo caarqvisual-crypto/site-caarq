@@ -278,3 +278,10 @@ body{overflow-x:hidden}
 .news-record-status.scheduled{color:#795712;background:#fff1bc}
 .news-manager .news-record{align-items:center}
 @media(max-width:640px){.news-photo-item{align-items:flex-start;flex-wrap:wrap}.news-photo-meta{width:100%}.news-photo-actions{width:100%}}
+
+/* CAARQ V19 — orientações de retirada editáveis no painel */
+.loca-manager .pickup-admin-panel{margin-top:25px;padding:22px;background:#fbf7fd;border:1px solid #e9d9ee;border-radius:15px}
+.loca-manager .pickup-admin-panel .block-head{margin-bottom:18px}
+.loca-manager .loca-pickup-preview{width:min(390px,100%);max-height:260px;object-fit:cover;border-radius:12px;border:1px solid #e6d7eb;margin:10px 0 15px}
+.loca-manager .pickup-admin-panel .check-label{font-weight:700}
+@media(max-width:600px){.loca-manager .pickup-admin-panel{padding:16px}}

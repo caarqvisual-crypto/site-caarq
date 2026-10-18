@@ -491,7 +491,28 @@ body{overflow-x:hidden}
                 <div class="form-full"><label for="locaBannerImage">Trocar banner (JPEG, PNG ou WebP, até 5 MB)</label><input id="locaBannerImage" type="file" accept="image/png,image/jpeg,image/webp"></div>
                 <div class="form-full"><img id="locaBannerPreview" class="loca-banner-preview" src="../loca/banner-loca.png" alt="Prévia do banner atual"></div>
               </div>
-              <div class="form-actions"><button type="submit" id="locaSaveConfig" class="primary-button">Salvar aparência da LOCA ↗</button></div>
+              <div class="pickup-admin-panel">
+                <div class="block-head"><h4>📍 Onde retirar os pedidos?</h4><p>Edite a localização e as orientações sem mexer no código. A seção aparece na LOCA e também no detalhe dos produtos. Os campos de contato, mapa e foto são opcionais.</p></div>
+                <div class="form-grid">
+                  <div class="form-full"><label class="check-label"><input id="locaPickupVisible" type="checkbox" checked> Mostrar as orientações de retirada na loja</label></div>
+                  <div><label for="locaPickupTitle">Título da seção</label><input id="locaPickupTitle" maxlength="120" placeholder="Onde retirar seu pedido?"></div>
+                  <div><label for="locaPickupSummary">Aviso resumido nos produtos</label><input id="locaPickupSummary" maxlength="200" placeholder="Retirada presencial no CAARQ, ao lado da nova biblioteca."></div>
+                  <div class="form-full"><label for="locaPickupDescription">Texto de boas-vindas</label><textarea id="locaPickupDescription" maxlength="800" rows="3" placeholder="Venha retirar seu pedido e conhecer nosso espaço!"></textarea></div>
+                  <div><label for="locaPickupPlace">Nome do local</label><input id="locaPickupPlace" maxlength="180" placeholder="Centro Acadêmico de Arquivologia (CAARQ)"></div>
+                  <div><label for="locaPickupReference">Ponto de referência</label><input id="locaPickupReference" maxlength="300" placeholder="Ao lado da nova biblioteca · UEPB Campus V"></div>
+                  <div class="form-full"><label for="locaPickupGuidance">Orientações para retirada</label><textarea id="locaPickupGuidance" maxlength="800" rows="3" placeholder="Combine o horário da retirada com a equipe do CAARQ."></textarea></div>
+                  <div class="form-full"><label for="locaPickupHours">Horários ou aviso de atendimento (opcional)</label><input id="locaPickupHours" maxlength="300" placeholder="Ex.: Consulte a disponibilidade da equipe antes de visitar."></div>
+                  <div><label for="locaPickupContactLabel">Texto do botão de contato</label><input id="locaPickupContactLabel" maxlength="60" placeholder="Falar com o C.A."></div>
+                  <div><label for="locaPickupContactLink">Link para contato (opcional)</label><input id="locaPickupContactLink" type="url" maxlength="1200" placeholder="https://www.instagram.com/..."></div>
+                  <div><label for="locaPickupMapLabel">Texto do botão de localização</label><input id="locaPickupMapLabel" maxlength="60" placeholder="Ver localização"></div>
+                  <div><label for="locaPickupMapLink">Link de mapa (opcional)</label><input id="locaPickupMapLink" type="url" maxlength="1200" placeholder="https://maps.google.com/..."></div>
+                  <div class="form-full"><label for="locaPickupPhoto">Fotografia da entrada/sala (PNG, JPEG ou WebP, até 5 MB)</label><input id="locaPickupPhoto" type="file" accept="image/png,image/jpeg,image/webp"><small class="file-help">Quando trocar a foto, a loja pública será atualizada automaticamente.</small></div>
+                  <div class="form-full"><label for="locaPickupCaption">Legenda da foto (aparece no site)</label><input id="locaPickupCaption" maxlength="180" placeholder="Entrada da sala do CAARQ, ao lado da nova biblioteca"></div>
+                  <div class="form-full"><label for="locaPickupAlt">Descrição acessível da fotografia</label><input id="locaPickupAlt" maxlength="260" placeholder="Entrada do CAARQ, com uma porta branca, janela e corredor ao lado"></div>
+                  <div class="form-full"><img id="locaPickupPhotoPreview" class="loca-pickup-preview" alt="Prévia da foto de retirada" hidden><label class="check-label" for="locaPickupRemovePhoto"><input id="locaPickupRemovePhoto" type="checkbox"> Remover foto atual da página pública</label></div>
+                </div>
+              </div>
+              <div class="form-actions"><button type="submit" id="locaSaveConfig" class="primary-button">Salvar aparência e retirada da LOCA ↗</button></div>
             </form>
           </section>
 
