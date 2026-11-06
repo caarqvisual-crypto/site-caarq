@@ -272,3 +272,74 @@ h3 { font-size:1.3rem; margin-bottom:12px; }
 .ombudsman-card-muted .ombudsman-num{color:var(--purple-mid)}
 @media(max-width:800px){.ombudsman-layout{grid-template-columns:1fr}.ombudsman-info{grid-template-columns:1fr 1fr;gap:12px}.ombudsman-card{padding:22px}}
 @media(max-width:570px){.ombudsman-layout{gap:25px}.ombudsman-info{grid-template-columns:1fr}.ombudsman-card{padding:23px}.ombudsman-intro h2{font-size:clamp(2.1rem,9vw,3rem)}}
+
+
+/* ==============================================================
+   CAARQ V21.4 — Correção de fotografias nos cartões da página inicial
+   A foto fica restrita à faixa superior; o conteúdo fica numa caixa
+   opaca independente, inclusive em temas de cores personalizados.
+   =============================================================== */
+.home-card-grid .home-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  isolation: isolate;
+  min-width: 0;
+}
+.home-card-grid .home-card .home-image {
+  position: relative !important;
+  display: block !important;
+  flex: 0 0 180px;
+  width: 100%;
+  height: 180px !important;
+  min-height: 180px !important;
+  max-height: 180px !important;
+  overflow: hidden !important;
+  isolation: isolate;
+  clip-path: inset(0);
+  background: var(--purple, #40194f);
+}
+.home-card-grid .home-card .home-image > img {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: none !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  max-height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  object-fit: cover !important;
+  object-position: center !important;
+  z-index: 0;
+}
+.home-card-grid .home-card .home-image > span {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1;
+}
+.home-card-grid .home-card .home-body {
+  position: relative !important;
+  z-index: 3 !important;
+  flex: 1 0 auto;
+  width: 100%;
+  min-width: 0;
+  background: var(--site-surface, #ffffff) !important;
+  color: var(--theme-on-surface, var(--ink, #281d2e)) !important;
+  padding: 21px;
+  overflow-wrap: anywhere;
+}
+.home-card-grid .home-card .home-body > strong,
+.home-card-grid .home-card .home-body > small,
+.home-card-grid .home-card .home-body > p {
+  position: relative;
+  color: inherit !important;
+  margin-left: 0;
+  margin-right: 0;
+}
