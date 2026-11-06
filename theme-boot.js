@@ -16,6 +16,33 @@
   };
   const pick = (obj, key, fallback) => hex(obj?.[key]) ? obj[key] : fallback;
   const shade = (color, factor) => '#' + [1,3,5].map(i => Math.min(255,Math.max(0,Math.round(parseInt(color.slice(i,i+2),16)*factor))).toString(16).padStart(2,'0')).join('');
+  // Contraste calculado sobre a cor REAL de cada fundo; evita texto branco sobre cartões claros.
+  const luminance = color => {
+    const rgb = [1,3,5].map(i=>parseInt(color.slice(i,i+2),16)/255)
+      .map(v=>v<=.04045?v/12.92:Math.pow((v+.055)/1.055,2.4));
+    return rgb[0]*.2126 + rgb[1]*.7152 + rgb[2]*.0722;
+  };
+  const ratio = (a,b) => {
+    const x=luminance(a), y=luminance(b);
+    return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);
+  };
+  const legible = (bg,choice,min=4.5) => {
+    if (ratio(bg,choice)>=min) return choice;
+    return ratio(bg,'#ffffff')>=ratio(bg,'#24172b') ? '#ffffff' : '#24172b';
+  };
+
+  // O favicon SEMPRE representa a identidade oficial, não a logo temática do Admin.
+  function setOfficialFavicon() {
+    const original = new URL(page==='home'?'logo-caarq.png':'../logo-caarq.png',document.baseURI);
+    original.searchParams.set('favicon','213');
+    const icons = [...document.querySelectorAll('link[rel~="icon"]')];
+    let link=icons[0];
+    if(!link){link=document.createElement('link');document.head.append(link);}
+    link.rel='icon';link.type='image/png';link.href=original.href;
+    for (const duplicate of icons.slice(1)) duplicate.remove();
+  }
+  setOfficialFavicon();
+
   function fromCache(name) {
     try { const value = JSON.parse(localStorage.getItem(prefix + name) || 'null'); return value && typeof value === 'object' ? value : null; }
     catch { return null; }
@@ -62,6 +89,18 @@
     const ink = pick(data, 'text_color', '#281d2e');
     const font = ['Montserrat','Arial','Georgia','Verdana','Trebuchet MS'].includes(data.font_family) ? data.font_family : 'Montserrat';
     const radius = [0,8,16,24].includes(Number(data.corner_radius)) ? Number(data.corner_radius) : 8;
+    const onPage = legible(background,ink);
+    const onSurface = legible(surface,ink);
+    const onPrimary = legible(primary,'#ffffff');
+    const titleOnPage = ratio(primary,background)>=4.5 ? primary : onPage;
+    const accentOnPage = ratio(accent,background)>=3 ? accent : titleOnPage;
+    // Com a paleta clássica, preservar o aspecto original das seções.
+    const customizedColors = primary.toLowerCase()!=='#40194f'
+      || accent.toLowerCase()!=='#ffd02f'
+      || background.toLowerCase()!=='#fffdf9'
+      || surface.toLowerCase()!=='#ffffff'
+      || ink.toLowerCase()!=='#281d2e';
+
     const css = root.style;
     css.setProperty('--purple',primary);
     css.setProperty('--purple-dark',shade(primary,.68));
@@ -81,6 +120,12 @@
     css.setProperty('--font',`"${font}",Arial,sans-serif`);
     css.setProperty('--radius',radius+'px');
     css.setProperty('--site-radius',radius+'px');
+    css.setProperty('--theme-on-page',onPage);
+    css.setProperty('--theme-on-surface',onSurface);
+    css.setProperty('--theme-on-primary',onPrimary);
+    css.setProperty('--theme-title-on-page',titleOnPage);
+    css.setProperty('--theme-accent-on-page',accentOnPage);
+
     if (page === 'admin') css.setProperty('--purple2',shade(primary,1.13));
     if (document.body) document.body.style.fontFamily=`"${font}",Arial,sans-serif`;
 
@@ -122,7 +167,67 @@
       .person-info h3,.og-group-header h3{color:var(--purple)!important}
       .person-bio{color:var(--site-text)!important}
     ` : '';
-    extra.textContent=globalThemeCSS+pageThemeCSS;
+    // V21.3: corrigir a galeria dos cards, que deixava fotografias invadirem o texto.
+    const layoutFix = page === 'home' ? `
+      .home-card .home-image {
+        position:relative!important;height:180px!important;min-height:180px!important;
+        max-height:180px!important;overflow:hidden!important;isolation:isolate!important;
+        display:grid!important;place-items:center!important;
+        background:var(--purple)!important;color:var(--yellow)!important;
+      }
+      .home-card .home-image img {
+        position:absolute!important;inset:0!important;display:block!important;
+        width:100%!important;height:100%!important;max-height:100%!important;
+        object-fit:cover!important;object-position:center!important;
+      }
+      .home-card .home-image>span {
+        position:absolute;inset:0;display:grid;place-items:center;
+      }
+      .home-card .home-body {position:relative;z-index:1;min-width:0}
+      .home-card .home-body strong,.home-card .home-body small,
+      .home-card .home-body p {overflow-wrap:anywhere}
+      #equipe,#projetos-resumo {scroll-margin-top:115px}
+    ` : '';
+    // Cores personalizadas podem ter texto branco e fundo verde/escuro.
+    // As seções claras antigas ficavam lilás/creme, causando texto invisível.
+    // A correção mantém a identidade clássica inalterada quando escolhida no Admin.
+    const customContrastFix = page === 'home' && customizedColors ? `
+      .home-team,.home-projects {
+        background:var(--paper)!important;color:var(--theme-on-page)!important;
+      }
+      .home-team .section-heading h2,.home-projects .section-heading h2,
+      .news .section-heading h2,.shop-copy h2,.about-heading h2,
+      .ombudsman-intro h2 {color:var(--theme-title-on-page)!important}
+      .home-team .section-heading h2 span,.home-projects .section-heading h2 span,
+      .news .section-heading h2 span,.shop-copy h2 span,
+      .about-heading h2 span,.ombudsman-intro h2 span {
+        color:var(--theme-accent-on-page)!important;
+      }
+      .home-team .heading-side,.home-projects .heading-side,
+      .news .heading-side,.home-team .kicker,.home-projects .kicker,
+      .news .kicker,.shop-copy .kicker,.about-heading .kicker,
+      .ombudsman-intro .kicker,.shop-copy>p:not(.kicker),
+      .about-copy p,.about-copy p strong,.about-aside-note,
+      .ombudsman-intro>p:not(.kicker),.ombudsman-hint {
+        color:var(--theme-on-page)!important;
+      }
+      .home-card {
+        background:var(--site-surface)!important;color:var(--theme-on-surface)!important;
+        border-radius:var(--site-radius)!important;
+      }
+      .home-card .home-body strong,.home-card .home-body small,
+      .home-card .home-body p {color:var(--theme-on-surface)!important}
+      .home-more {
+        background:var(--purple)!important;color:var(--theme-on-primary)!important;
+        border-radius:var(--site-radius)!important;
+      }
+      .home-status {background:var(--site-surface)!important;color:var(--theme-on-surface)!important}
+      .shop .shop-copy>p,.shop .shop-copy .kicker {color:var(--theme-on-page)!important}
+      .about-section .section-index,.about-section .about-heading .kicker,
+      .about-section .about-asterisk {color:var(--theme-on-page)!important}
+      .news .section-heading {color:var(--theme-on-page)!important}
+    ` : '';
+    extra.textContent=globalThemeCSS+pageThemeCSS+layoutFix+customContrastFix;
 
     if (page === 'home') {
       const fields={homeKicker:'hero_kicker',homeTitleFirst:'hero_first',homeTitleAccent:'hero_highlight',homeTitleLast:'hero_last',homeDescription:'hero_description'};
