@@ -548,7 +548,26 @@ let appearanceLoaded=false;
 let appearanceSaved={...appearanceDefaults};
 const validHex=value=>/^#[0-9a-fA-F]{6}$/.test(value||'');
 const validHttps=value=>{try{const u=new URL(value);return u.protocol==='https:'&&u.href.length<=2000;}catch{return false;}};
-function appearanceFeedback(message,success=false){notice('appearanceFeedback',message,success);}
+function appearanceFeedback(message,success=false){
+  // Os avisos anteriores ficavam acima do formulário; perto de "Publicar" não havia feedback.
+  notice('appearanceFeedback',message,success);
+  let nearby=el('appearanceSaveFeedback');
+  const actions=el('saveAppearance')?.closest('.theme-save-actions');
+  if(!nearby && actions){
+    nearby=document.createElement('div');
+    nearby.id='appearanceSaveFeedback';
+    nearby.className='message';
+    nearby.setAttribute('role','status');
+    nearby.setAttribute('aria-live','polite');
+    nearby.style.marginTop='14px';
+    actions.insertAdjacentElement('afterend',nearby);
+  }
+  if(nearby){
+    nearby.textContent=message;
+    nearby.classList.toggle('success',success);
+    nearby.hidden=!message;
+  }
+}
 function appearanceBrightness(hex){const channels=[1,3,5].map(n=>parseInt(hex.slice(n,n+2),16)/255).map(c=>c<=.04045?c/12.92:((c+.055)/1.055)**2.4);return .2126*channels[0]+.7152*channels[1]+.0722*channels[2];}
 function contrast(first,second){const a=appearanceBrightness(first),b=appearanceBrightness(second);return (Math.max(a,b)+.05)/(Math.min(a,b)+.05);}
 function appearanceFill(a){
@@ -622,16 +641,44 @@ async function uploadThemeFile(file,type){
 }
 async function saveAppearanceData(changes,uploadedFiles){
  const b=el('saveAppearance');b.disabled=true;b.textContent='Publicando…';
+ appearanceFeedback('Salvando as alterações no CAARQ…');
  try{
   if(uploadedFiles?.logo)changes.logo_url=await uploadThemeFile(uploadedFiles.logo,'logo');
   if(uploadedFiles?.banner)changes.banner_url=await uploadThemeFile(uploadedFiles.banner,'banner');
-  const {data,error}=await client.from('caarq_aparencia').update({...changes,atualizado_em:new Date().toISOString()}).eq('id',1).select().single();
+  const {data,error}=await client.from('caarq_aparencia')
+    .update({...changes,atualizado_em:new Date().toISOString()}).eq('id',1).select('*').single();
   if(error)throw error;
-  appearanceSaved={...appearanceDefaults,...data};appearanceFill(appearanceSaved);
+  if(!data)throw new Error('O banco não confirmou a gravação. Confira as permissões da sua conta.');
+  // Nunca afirmar que publicou quando o banco devolveu valores diferentes.
+  const mismatched=Object.keys(changes).filter(key => {
+    const expected=changes[key],actual=data[key];
+    if(typeof expected==='string' && /^#[0-9a-f]{6}$/i.test(expected))
+      return String(actual||'').toLowerCase()!==expected.toLowerCase();
+    return actual!==expected;
+  });
+  if(mismatched.length)throw new Error('O banco não confirmou as mudanças em: '+mismatched.join(', ')+'.');
+  // Uma leitura adicional confirma que os dados persistiram e que serão lidos pelo site.
+  const {data:confirmed,error:readError}=await client.from('caarq_aparencia')
+    .select('*').eq('id',1).maybeSingle();
+  if(readError||!confirmed)throw new Error('Não foi possível confirmar a publicação no banco.');
+  const persisted=Object.keys(changes).every(key=>{
+    const expected=changes[key],actual=confirmed[key];
+    return typeof expected==='string' && /^#[0-9a-f]{6}$/i.test(expected)
+      ? String(actual||'').toLowerCase()===expected.toLowerCase() : actual===expected;
+  });
+  if(!persisted)throw new Error('O site recebeu valores diferentes dos escolhidos. Nada foi confirmado como publicado.');
+  appearanceSaved={...appearanceDefaults,...confirmed};appearanceFill(appearanceSaved);
   try{localStorage.setItem('caarq:v20:appearance',JSON.stringify(appearanceSaved));}catch{}
-  appearanceFeedback('Aparência publicada! Atualize a página inicial do CAARQ para conferir.',true);
- }catch(error){console.error('Salvar aparência',error);appearanceFeedback('Não foi possível salvar a aparência. Confira sua autorização e o SQL da versão 6.');}
- finally{b.disabled=false;b.textContent='Publicar aparência ↗';}
+  appearanceFeedback('✅ Aparência publicada e confirmada no banco! Abra a página inicial e atualize para visualizar cores, fonte e cantos.',true);
+  return true;
+ }catch(error){
+  console.error('Salvar aparência',error);
+  const msg=String(error?.message||'');
+  if(error?.code==='42501'||error?.code==='PGRST116'||/permission|policy|row-level security|unauthorized|forbidden/i.test(msg))
+    appearanceFeedback('❌ Sua conta não tem permissão de gravação da aparência no Supabase. Peça à Administração Geral para conferir o acesso.');
+  else appearanceFeedback('❌ Não foi possível publicar. '+(msg||'Confira a conexão e tente novamente.')+' Suas escolhas continuam no formulário.');
+  return false;
+ }finally{b.disabled=false;b.textContent='Publicar aparência ↗';}
 }
 el('appearanceForm').addEventListener('submit',async e=>{
  e.preventDefault();if(!canEditAppearance()||!appearanceLoaded)return;
@@ -641,7 +688,7 @@ el('appearanceForm').addEventListener('submit',async e=>{
  if([color,accent,background,surface,textColor].some(x=>!validHex(x)) ||
     contrast(color,'#ffffff')<4.5||contrast(accent,color)<3||
     contrast(textColor,background)<4.5||contrast(textColor,surface)<4.5){
-    appearanceFeedback('Essas cores deixam algum texto difícil de ler. Aumente o contraste entre texto e fundos, e mantenha a cor principal legível com branco.');return;}
+    appearanceFeedback('❌ Não publicado: as cores escolhidas têm pouco contraste. Ajuste a cor principal para contrastar com branco, o destaque para contrastar com a principal e o texto para contrastar com os fundos. As alterações só serão publicadas depois da correção.');return;}
  const textKeys={hero_kicker:'themeKicker',hero_first:'themeFirst',hero_highlight:'themeAccentText',hero_last:'themeLast',hero_description:'themeDescription'};
  const changes={primary_color:color,accent_color:accent,background_color:background,surface_color:surface,text_color:textColor,font_family:el('themeFont').value,corner_radius:Number(el('themeRadius').value)};
  for(const [key,id] of Object.entries(textKeys)){const t=el(id).value.trim();if(!t){appearanceFeedback('Preencha todos os textos do banner.');return;}changes[key]=t;}
