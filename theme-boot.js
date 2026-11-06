@@ -82,12 +82,47 @@
     css.setProperty('--radius',radius+'px');
     css.setProperty('--site-radius',radius+'px');
     if (page === 'admin') css.setProperty('--purple2',shade(primary,1.13));
-    if (document.body && page !== 'loca') document.body.style.fontFamily=`"${font}",Arial,sans-serif`;
+    if (document.body) document.body.style.fontFamily=`"${font}",Arial,sans-serif`;
 
     let extra=document.getElementById('caarq-v20-appearance');
     if (!extra) { extra=document.createElement('style');extra.id='caarq-v20-appearance';document.head.append(extra); }
-    if (page === 'home') extra.textContent='body{color:var(--site-ink,var(--ink))!important;background:var(--paper)!important}.portal-card,.about-card,.document-card,.feature-card,.info-card,.person-card,.history-card,.project-card,.event-card{background:var(--site-surface)!important;border-radius:var(--site-radius)!important}.portal-card p,.portal-card small,.person-bio{color:var(--site-ink)!important}';
-    else if (page === 'members') extra.textContent='.current-section,.history-section{background:var(--paper)!important}.person-card,.history-card,.og-group-header{background:var(--site-surface)!important;border-radius:var(--site-radius)!important}.person-info h3,.og-group-header h3{color:var(--purple)!important}.person-bio{color:var(--site-text)!important}';
+    // O CSS antigo usa fontes e cantos fixos em diversos componentes.
+    // As regras abaixo só alteram aparência, sem tocar nas estruturas e eventos das páginas.
+    const globalThemeCSS = `
+      body, button, input, select, textarea, h1, h2, h3, h4, h5, h6 {
+        font-family:var(--font)!important;
+      }
+      :where(.button,.button-yellow,.nav-cta,.menu-toggle,.portal-card,.news-card,
+        .value-card,.feature-card,.about-card,.document-card,.info-card,.person-card,
+        .history-card,.project-card,.event-card,.contact-panel,.ombudsman-card,
+        .shop-card,.news-feature,.primary-button,.logout-button,.form-control,
+        .og-group-header,.product-card,.shop-product,.tile,.card,.theme-preview) {
+        border-radius:var(--site-radius)!important;
+      }
+    `;
+    const pageThemeCSS = page === 'home' ? `
+      body{color:var(--site-ink,var(--ink))!important;background-color:var(--paper)!important}
+      .hero,.announcement,.value-purple,.visual-purple,.contact-panel{
+        background-color:var(--purple)!important;
+      }
+      .manifesto,.site-footer{background-color:var(--purple-dark)!important}
+      .hero h1 em{color:var(--yellow)!important}
+      .portal-card,.about-card,.document-card,.feature-card,.info-card,
+      .person-card,.history-card,.project-card,.event-card{
+        background-color:var(--site-surface)!important;
+      }
+      .portal-card p,.portal-card small,.person-bio{color:var(--site-ink)!important}
+      .portal-card-admin{background-color:var(--purple)!important;border-color:var(--purple)!important}
+      .portal-card-admin strong,.portal-card-admin .portal-arrow{color:#fff!important}
+      .portal-card:not(.portal-card-admin) strong,
+      .portal-card:not(.portal-card-admin) .portal-arrow{color:var(--purple)!important}
+    ` : page === 'members' ? `
+      .current-section,.history-section{background:var(--paper)!important}
+      .person-card,.history-card,.og-group-header{background:var(--site-surface)!important}
+      .person-info h3,.og-group-header h3{color:var(--purple)!important}
+      .person-bio{color:var(--site-text)!important}
+    ` : '';
+    extra.textContent=globalThemeCSS+pageThemeCSS;
 
     if (page === 'home') {
       const fields={homeKicker:'hero_kicker',homeTitleFirst:'hero_first',homeTitleAccent:'hero_highlight',homeTitleLast:'hero_last',homeDescription:'hero_description'};
